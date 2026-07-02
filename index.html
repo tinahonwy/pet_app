@@ -190,6 +190,7 @@
   .type-tag.type-vet{background:#E4D9F0;color:#5A3E82;}
   .type-tag.type-med{background:var(--honey-soft);color:#8A6A1E;}
   .type-tag.type-other{background:var(--moss-soft);color:var(--moss-deep);}
+  .type-tag.type-discomfort{background:#F5D5D0;color:#9C4A3A;}
   .feed-food{font-size:14.5px;font-weight:500;margin:4px 0 2px;line-height:1.4;}
   .feed-amount{font-size:12px;color:var(--ink-soft);}
   .feed-note{font-size:12px;color:var(--ink-soft);margin-top:4px;}
@@ -223,6 +224,7 @@
   .seg button.active.type-vet{background:var(--clay);}
   .seg button.active.type-med{background:var(--honey);}
   .seg button.active.type-other{background:#7D5BA6;}
+  .seg button.active.type-discomfort{background:#C05C4A;}
 
   .star-picker{display:flex;gap:4px;}
   .star-btn{background:none;border:none;font-size:24px;line-height:1;cursor:pointer;padding:2px;color:var(--honey);}
@@ -244,6 +246,7 @@
   .feed-icon.type-vet{background:#E4D9F0;color:#5A3E82;}
   .feed-icon.type-med{background:var(--honey-soft);color:#8A6A1E;}
   .feed-icon.type-other{background:var(--moss-soft);color:var(--moss-deep);}
+  .feed-icon.type-discomfort{background:#F5D5D0;color:#9C4A3A;}
   .log-stars{color:var(--honey);font-size:13px;letter-spacing:1px;}
   .log-cost{background:var(--paper);padding:2px 8px;border-radius:8px;font-size:11.5px;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-weight:600;}
 
@@ -297,9 +300,10 @@ const DEFAULT_LOGO = "./PLOGO.png";
 const SPECIES = ["狗","貓","兔子","鳥","倉鼠","魚","其他"];
 const SPECIES_ICON = {"狗":"🐶","貓":"🐱","兔子":"🐰","鳥":"🐦","倉鼠":"🐹","魚":"🐟","其他":"🐾"};
 const PALETTE = ["#4C6B3F","#BE7A46","#C99A3E","#3E7CA6","#7D5BA6","#AE4A34","#5C8A6B","#B65A82"];
-const LOG_TYPES = ["meal","vet","med","other"];
-const LOG_TYPE_LABEL = {meal:"飲食", vet:"看診", med:"用藥", other:"其他支出"};
-const LOG_TYPE_ICON = {meal:"🍖", vet:"🩺", med:"💊", other:"🧾"};
+const LOG_TYPES = ["meal","vet","med","discomfort","other"];
+const LOG_TYPE_LABEL = {meal:"飲食", vet:"看診", med:"用藥", discomfort:"不舒服", other:"其他支出"};
+const LOG_TYPE_ICON = {meal:"🍖", vet:"🩺", med:"💊", discomfort:"🤒", other:"🧾"};
+const SEVERITY_OPTIONS = ["","輕微","中等","嚴重"];
 const LEFTOVER_OPTIONS = ["","吃光光","剩一點","剩一半","剩大半","幾乎沒吃"];
 const OTHER_CAT_SUGGESTIONS = ["用品","美容","保險","住宿","交通"];
 
@@ -1196,6 +1200,33 @@ function renderLogForm(petId){
       </div>
     `;
     document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'med');
+  } else if(t==='discomfort'){
+    const severity = e ? (e.severity||'') : '';
+    area.innerHTML = `
+      <div class="form-card">
+        <div class="grid2">
+          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
+          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div>
+        </div>
+        <div class="field compact"><label>症狀內容</label><textarea id="lg_content" placeholder="例如：一直抓耳朵、嘔吐、精神不好">${e?esc(e.content||''):''}</textarea></div>
+        <div class="field compact"><label>嚴重程度（選填）</label>
+          <select id="lg_severity">${SEVERITY_OPTIONS.map(o=>`<option value="${esc(o)}" ${severity===o?'selected':''}>${o?esc(o):'—'}</option>`).join('')}</select>
+        </div>
+        <div class="field compact"><label>照片（選填）</label>
+          <div class="photo-box ${logPhotoDataUrl?'has-img':''}" id="logPhotoBox">
+            ${logPhotoDataUrl ? `<img src="${logPhotoDataUrl}"><button class="photo-remove" id="removeLogPhoto">✕</button>` : `<div class="placeholder"><span class="ic">📷</span>拍照或選擇照片</div>`}
+          </div>
+          <input type="file" id="lg_photo" accept="image/*" style="display:none">
+        </div>
+        <div class="grid2">
+          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 0" value="${e&&e.cost!=null?e.cost:''}"></div>
+          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事" value="${e?esc(e.note||''):''}"></div>
+        </div>
+        <div class="submit-row"><button class="btn btn-primary" id="submitLog">${e?'更新這筆不舒服紀錄':'儲存這筆不舒服紀錄'}</button></div>
+      </div>
+    `;
+    bindLogPhotoBox();
+    document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'discomfort');
   } else {
     area.innerHTML = `
       <div class="form-card">
@@ -1303,6 +1334,9 @@ function logCardHtml(f, showPetName){
     titleHtml = `<div class="feed-food">${esc(f.content||'')}</div>`;
   } else if(t==='med'){
     titleHtml = `<div class="feed-food">${esc(f.medName||'')}${f.dosage? ' · '+esc(f.dosage):''}</div>`;
+  } else if(t==='discomfort'){
+    titleHtml = `<div class="feed-food">${esc(f.content||'')}</div>`;
+    if(f.severity) subHtml += `<div class="feed-amount">嚴重程度：${esc(f.severity)}</div>`;
   } else {
     titleHtml = `<div class="feed-food">${esc(f.category||'其他')}${f.content? '：'+esc(f.content):''}</div>`;
   }
@@ -1395,6 +1429,12 @@ async function submitLog(petId, type){
     if(!medName){ toast('請填寫藥品名稱'); return; }
     data.medName = medName;
     data.dosage = document.getElementById('lg_dosage').value.trim();
+  } else if(type==='discomfort'){
+    const content = document.getElementById('lg_content').value.trim();
+    if(!content){ toast('請填寫症狀內容'); return; }
+    data.content = content;
+    data.severity = document.getElementById('lg_severity').value;
+    data.photo = logPhotoDataUrl || null;
   } else {
     const category = document.getElementById('lg_category').value.trim();
     if(!category){ toast('請填寫類別'); return; }
@@ -1758,7 +1798,7 @@ function renderOverviewPage(){
   document.getElementById('rangeNext').onclick = ()=>{ shiftOverviewDate(1); renderOverviewPage(); };
 }
 function typeColor(t){
-  return {meal:'var(--clay)', vet:'#7D5BA6', med:'var(--honey)', other:'var(--moss)'}[t] || 'var(--moss)';
+  return {meal:'var(--clay)', vet:'#7D5BA6', med:'var(--honey)', discomfort:'#C05C4A', other:'var(--moss)'}[t] || 'var(--moss)';
 }
 
 root.innerHTML = `<div class="loading">載入中…</div>`;
