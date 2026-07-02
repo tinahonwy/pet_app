@@ -1153,7 +1153,9 @@ async function submitLog(petId, type){
   }
   btn.disabled = true; btn.textContent = '儲存中…';
   try{
-    await db.collection('pets').doc(petId).collection('logs').add(data);
+    const ref = await db.collection('pets').doc(petId).collection('logs').add(data);
+    logsByPet[petId] = [...(logsByPet[petId]||[]), {id:ref.id, petId, ...data}];
+    rebuildAllLogs();
     toast('已儲存這筆紀錄 ' + LOG_TYPE_ICON[type]);
     renderPetDetail();
   }catch(e){
@@ -1275,6 +1277,9 @@ async function submitPet(){
   try{
     if(isEdit){
       await db.collection('pets').doc(editingPet.id).update(data);
+      if(ownPetsMap[editingPet.id]) ownPetsMap[editingPet.id] = {...ownPetsMap[editingPet.id], ...data};
+      if(friendPetsMap[editingPet.id]) friendPetsMap[editingPet.id] = {...friendPetsMap[editingPet.id], ...data};
+      rebuildAllPets();
       toast('已更新寵物資料 🐾');
       selectedPetId = editingPet.id;
       editingPet = null; view='detail';
@@ -1283,6 +1288,8 @@ async function submitPet(){
       data.ownerId = currentUser.uid;
       data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       const ref = await db.collection('pets').add(data);
+      ownPetsMap[ref.id] = {id:ref.id, ...data};
+      rebuildAllPets();
       toast('已新增寵物 🎉');
       selectedPetId = ref.id; view='detail';
       renderPetDetail();
