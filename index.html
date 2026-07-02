@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
+<title>毛孩日誌</title>
+<link rel="icon" type="image/png" href="./PLOGO.png">
+<link rel="apple-touch-icon" href="./PLOGO.png">
+<meta name="apple-mobile-web-app-title" content="毛孩日誌">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#4C6B3F">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-auth-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.12.2/firebase-firestore-compat.min.js"></script>
+<style>
+  :root{
+    --paper:#EDEEDF;
+    --surface:#FFFFFC;
+    --ink:#26301F;
+    --ink-soft:#68705C;
+    --line:#D9DCC5;
+    --moss:#4C6B3F;
+    --moss-deep:#374F2C;
+    --moss-soft:#E1E6D0;
+    --clay:#BE7A46;
+    --clay-deep:#9C5F34;
+    --clay-soft:#F1E2CE;
+    --honey:#C99A3E;
+    --honey-soft:#F1E4BE;
+    --err:#AE4A34;
+    --shadow: 0 1px 2px rgba(38,48,31,0.05), 0 8px 24px -12px rgba(38,48,31,0.22);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;overflow-x:hidden;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Noto Sans TC', -apple-system, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  ::selection{background:var(--honey-soft);}
+  .num{font-family:'IBM Plex Mono', monospace;}
+  h1,h2,h3,.display{font-family:'Noto Serif TC', serif;}
+  button{font-family:inherit;}
+  input,select,textarea{font-family:inherit;}
+  a{color:var(--moss-deep);}
+
+  #root{max-width:560px;margin:0 auto;min-height:100vh;min-height:100svh;position:relative;padding-bottom:calc(120px + env(safe-area-inset-bottom));}
+
+  .paw{display:inline-block;width:1em;height:1em;vertical-align:-0.12em;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 14px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .logo{width:34px;height:34px;border-radius:10px;object-fit:cover;flex-shrink:0;}
+  .brand .logo-fallback{width:34px;height:34px;border-radius:10px;background:var(--moss);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+  .brand h1{font-size:20px;font-weight:600;margin:0;letter-spacing:.2px;color:var(--ink);}
+  .brand .tag{font-size:11px;color:var(--ink-soft);letter-spacing:.4px;}
+  .who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-soft);}
+  .who button{background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:12px;padding:0;}
+  .profile-trigger{
+    display:flex;align-items:center;gap:7px;background:none;border:none;
+    color:var(--ink-soft);font-size:13px;font-family:inherit;cursor:pointer;padding:0;
+  }
+  .profile-trigger:hover{color:var(--moss-deep);}
+  .avatar-mini{width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--moss-soft);}
+  .icon-btn{position:relative;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 6px;line-height:1;color:var(--ink-soft);}
+  .invite-badge{position:absolute;top:0px;right:2px;width:10px;height:10px;border-radius:50%;background:var(--clay);border:2px solid var(--paper);}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(38,48,31,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;}
+  .modal-card{background:var(--surface);border-radius:20px;padding:22px;max-width:380px;width:100%;box-shadow:var(--shadow);max-height:88vh;overflow-y:auto;}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .modal-head h3{margin:0;font-size:18px;font-weight:600;color:var(--ink);}
+  .modal-close{background:none;border:none;font-size:16px;color:var(--ink-soft);cursor:pointer;padding:2px 6px;}
+  .modal-close:hover{color:var(--moss-deep);}
+
+  .avatar-edit{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:18px;}
+  .avatar-preview{width:84px;height:84px;border-radius:50%;background:var(--moss-soft);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:28px;color:var(--moss-deep);font-family:'Noto Serif TC',serif;}
+  .avatar-preview img{width:100%;height:100%;object-fit:cover;}
+  .color-picker{display:flex;flex-wrap:wrap;gap:10px;padding:2px 0;}
+  .color-swatch{width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;}
+  .color-swatch.selected{border-color:var(--ink);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink);}
+
+  .auth-wrap{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:32px 24px;max-width:420px;margin:0 auto;}
+  .auth-hero{margin-bottom:26px;text-align:center;}
+  .auth-hero .logo-lg{width:56px;height:56px;border-radius:16px;object-fit:cover;margin-bottom:14px;}
+  .auth-hero .eyebrow{font-size:12px;letter-spacing:2px;color:var(--clay-deep);font-weight:600;text-transform:uppercase;margin-bottom:10px;}
+  .auth-hero h1{font-size:32px;line-height:1.2;margin:0 0 8px;font-weight:600;}
+  .auth-hero p{color:var(--ink-soft);font-size:14px;line-height:1.6;margin:0;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;font-weight:500;}
+  .field input, .field select{width:100%;padding:12px 13px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-size:15px;color:var(--ink);transition:border-color .15s;}
+  .field input:focus, .field select:focus{outline:none;border-color:var(--moss);}
+  .btn{width:100%;padding:13px;border-radius:10px;border:none;font-size:15px;font-weight:600;cursor:pointer;transition:transform .1s, opacity .15s;}
+  .btn:active{transform:scale(0.98);}
+  .btn:disabled{opacity:.55;}
+  .btn-primary{background:var(--moss);color:#fff;}
+  .btn-primary:hover{background:var(--moss-deep);}
+  .btn-ghost{background:transparent;color:var(--ink-soft);text-decoration:underline;padding:8px;font-weight:500;font-size:13.5px;width:auto;}
+  .btn-danger{background:var(--err);color:#fff;}
+  .auth-toggle{text-align:center;margin-top:16px;font-size:13.5px;color:var(--ink-soft);}
+  .auth-toggle a{cursor:pointer;font-weight:600;}
+  .auth-err{background:#F8E7E1;border:1px solid #E6BBA9;color:var(--err);font-size:13px;padding:10px 12px;border-radius:9px;margin-bottom:14px;line-height:1.5;}
+  .auth-ok{background:var(--moss-soft);border:1px solid #B9CBA0;color:var(--moss-deep);font-size:13px;padding:10px 12px;border-radius:9px;margin-bottom:14px;line-height:1.5;}
+
+  .tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;z-index:50;padding-bottom:env(safe-area-inset-bottom);}
+  .tabbar-inner{max-width:560px;width:100%;display:flex;}
+  .tab{flex:1;padding:12px 4px 10px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-soft);font-size:11.5px;font-weight:500;}
+  .tab .ic{font-size:19px;}
+  .tab.active{color:var(--moss-deep);}
+
+  .page{padding:6px 20px 20px;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  .section-title{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-soft);font-weight:600;margin:20px 0 10px;display:flex;align-items:center;justify-content:space-between;}
+  .section-title:first-child{margin-top:4px;}
+  .add-fab{background:var(--moss);color:#fff;border:none;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0;text-transform:none;}
+
+  .pet-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .pet-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:var(--shadow);cursor:pointer;text-align:center;}
+  .pet-card:active{transform:scale(0.98);}
+  .pet-photo{width:100%;aspect-ratio:1;border-radius:14px;object-fit:cover;background:var(--moss-soft);margin-bottom:8px;}
+  .pet-photo-fallback{width:100%;aspect-ratio:1;border-radius:14px;background:var(--moss-soft);display:flex;align-items:center;justify-content:center;font-size:30px;margin-bottom:8px;}
+  .pet-name{font-size:14.5px;font-weight:600;color:var(--ink);}
+  .pet-meta{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .pet-owner-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--ink-soft);margin-top:6px;background:var(--paper);padding:2px 8px;border-radius:20px;}
+  .pet-owner-tag img{width:13px;height:13px;border-radius:50%;object-fit:cover;}
+
+  .back-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .back-btn{background:none;border:none;color:var(--ink-soft);font-size:14px;cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:4px;}
+  .back-btn:hover{color:var(--moss-deep);}
+
+  .pet-detail-hero{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow);margin-bottom:18px;}
+  .pet-detail-photo{width:100%;max-height:260px;border-radius:14px;object-fit:cover;margin-bottom:14px;background:var(--moss-soft);}
+  .pet-detail-photo-fallback{width:100%;height:160px;border-radius:14px;background:var(--moss-soft);display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:14px;}
+  .pet-detail-name{font-size:24px;font-weight:600;margin:0 0 4px;}
+  .pet-detail-sub{font-size:13px;color:var(--ink-soft);margin-bottom:12px;}
+  .pet-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .pet-info-item{background:var(--paper);border-radius:12px;padding:9px 12px;}
+  .pet-info-item .lbl{font-size:10.5px;color:var(--ink-soft);margin-bottom:2px;}
+  .pet-info-item .val{font-size:14px;font-weight:600;color:var(--ink);}
+  .pet-note-block{background:var(--paper);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.6;color:var(--ink);margin-bottom:10px;white-space:pre-wrap;}
+  .pet-note-block .lbl{font-size:10.5px;color:var(--ink-soft);margin-bottom:4px;font-weight:600;letter-spacing:.5px;}
+  .pet-detail-actions{display:flex;gap:10px;margin-top:14px;}
+  .pet-detail-actions button{flex:1;padding:10px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);}
+  .pet-detail-actions button.edit{color:var(--moss-deep);border-color:var(--moss-soft);}
+  .pet-detail-actions button.del{color:var(--err);}
+
+  .form-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;min-width:0;}
+  .grid2 > *{min-width:0;}
+  @media (max-width:430px){ .grid2{grid-template-columns:1fr;} .pet-grid{grid-template-columns:1fr 1fr;} }
+  .field.compact{margin-bottom:12px;}
+  .field.compact label{font-size:11.5px;}
+  .field.compact input, .field.compact select{padding:10px 11px;font-size:14px;}
+  textarea{width:100%;padding:12px 13px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-size:15px;color:var(--ink);resize:vertical;min-height:52px;}
+  textarea:focus{outline:none;border-color:var(--moss);}
+
+  .photo-box{border:1.5px dashed var(--line);border-radius:14px;padding:14px;text-align:center;cursor:pointer;background:#FBFAF3;position:relative;overflow:hidden;}
+  .photo-box.has-img{border-style:solid;padding:0;}
+  .photo-box img{width:100%;max-height:220px;object-fit:cover;display:block;border-radius:12px;}
+  .photo-box .placeholder{color:var(--ink-soft);font-size:13px;padding:16px 0;}
+  .photo-box .placeholder .ic{font-size:26px;display:block;margin-bottom:6px;}
+  .photo-remove{position:absolute;top:8px;right:8px;background:rgba(38,48,31,.65);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;}
+
+  .submit-row{margin-top:16px;}
+  .toast{position:fixed;bottom:calc(96px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:30px;font-size:13.5px;box-shadow:var(--shadow);z-index:300;opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;max-width:86%;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  .feed-quick{display:flex;gap:8px;margin-bottom:14px;}
+  .feed-quick select{flex:1;padding:11px 12px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-size:14px;color:var(--ink);}
+
+  .day-group{margin-bottom:18px;}
+  .day-label{font-size:12.5px;color:var(--ink-soft);font-weight:600;margin-bottom:8px;letter-spacing:.3px;}
+  .feed-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:13px 15px;margin-bottom:10px;box-shadow:var(--shadow);display:flex;gap:12px;}
+  .feed-icon{width:46px;height:46px;border-radius:12px;background:var(--clay-soft);color:var(--clay-deep);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+  .feed-body{flex:1;min-width:0;}
+  .feed-top{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--honey-soft);color:#8A6A1E;}
+  .time-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--paper);color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
+  .pet-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--moss-soft);color:var(--moss-deep);}
+  .feed-food{font-size:14.5px;font-weight:500;margin:4px 0 2px;line-height:1.4;}
+  .feed-amount{font-size:12px;color:var(--ink-soft);}
+  .feed-note{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+  .feed-actions{display:flex;justify-content:flex-end;margin-top:6px;}
+  .del-btn{background:none;border:none;color:#B7AF9E;font-size:11.5px;cursor:pointer;text-decoration:underline;}
+  .del-btn:hover{color:var(--err);}
+  .edit-btn{background:none;border:none;color:var(--moss);font-size:11.5px;cursor:pointer;text-decoration:underline;margin-right:14px;}
+
+  .empty-state{text-align:center;color:var(--ink-soft);font-size:13.5px;padding:40px 10px;line-height:1.7;}
+  .empty-state .ic{font-size:34px;display:block;margin-bottom:10px;}
+
+  .friends-section{margin-bottom:18px;}
+  .friends-section:last-child{margin-bottom:0;}
+  .friends-section-title{font-size:11.5px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-soft);font-weight:600;margin-bottom:10px;}
+  .invite-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--honey-soft);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:8px;}
+  .invite-actions{display:flex;gap:6px;flex-shrink:0;}
+  .btn-accept{background:var(--moss);color:#fff;border:none;border-radius:16px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+  .btn-decline{background:none;color:var(--ink-soft);border:1px solid var(--line);border-radius:16px;padding:6px 12px;font-size:12px;cursor:pointer;}
+  .friend-row{display:flex;align-items:center;gap:9px;padding:8px 0;font-size:13.5px;border-bottom:1px solid var(--line);}
+  .friend-row:last-child{border-bottom:none;}
+  .friend-row-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .friend-remove{background:none;border:none;color:#B7AF9E;font-size:11.5px;cursor:pointer;text-decoration:underline;flex-shrink:0;}
+  .friend-remove:hover{color:var(--err);}
+  .history-empty{font-size:12.5px;color:var(--ink-soft);text-align:center;padding:14px 6px;}
+
+  .loading{display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--ink-soft);font-size:14px;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCGwy2jDdcVqZIEtTn9-WjuPeSanCt8PUo",
+  authDomain: "my-pet-app-d0e2c.firebaseapp.com",
+  projectId: "my-pet-app-d0e2c",
+  storageBucket: "my-pet-app-d0e2c.firebasestorage.app",
+  messagingSenderId: "622871739391",
+  appId: "1:622871739391:web:3a36b56626e2a76e7bc5ca",
+  measurementId: "G-9MMX4Q7HC3"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const INVITE_CODE = "20001126";
+const DEFAULT_LOGO = "./PLOGO.png";
+const SPECIES = ["狗","貓","兔子","鳥","倉鼠","魚","其他"];
+const SPECIES_ICON = {"狗":"🐶","貓":"🐱","兔子":"🐰","鳥":"🐦","倉鼠":"🐹","魚":"🐟","其他":"🐾"};
+const PALETTE = ["#4C6B3F","#BE7A46","#C99A3E","#3E7CA6","#7D5BA6","#AE4A34","#5C8A6B","#B65A82"];
+
+function esc(s){return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function nowTimeStr(){
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function nameColor(uid){
+  const u = allUsers.find(x=>x.uid===uid);
+  if(u && u.color) return u.color;
+  let h = 0;
+  const s = uid||'';
+  for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) % 997; }
+  return PALETTE[h % PALETTE.length];
+}
+async function pickAvailableColor(excludeUid){
+  try{
+    const snap = await db.collection('users').get();
+    const taken = new Set();
+    snap.forEach(d=>{ if(d.id!==excludeUid && d.data().color) taken.add(d.data().color); });
+    for(const c of PALETTE){ if(!taken.has(c)) return c; }
+  }catch(e){ console.error(e); }
+  return PALETTE[0];
+}
+function userName(uid){
+  const u = allUsers.find(x=>x.uid===uid);
+  return u ? u.name : '某人';
+}
+function userAvatar(uid){
+  const u = allUsers.find(x=>x.uid===uid);
+  return u && u.avatar ? u.avatar : null;
+}
+
+let currentUser = null;
+let currentProfile = null;
+let allUsers = [];
+let allPets = [];
+let allFeeds = [];
+let myFriends = new Set();
+let pendingInvitesToMe = [];
+let sentInvites = [];
+
+let unsubProfile=null, unsubUsers=null, unsubPets=null, unsubFeeds=null, unsubFriends=null, unsubInvites=null, unsubSentInvites=null;
+
+let authMode = 'login';
+let activeTab = 'pets';
+let view = 'list'; // list | detail | addPet | editPet
+let selectedPetId = null;
+let petPhotoDataUrl = null;
+let feedQuickPetId = '';
+
+const root = document.getElementById('root');
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function logoImgTag(cls){
+  return `<img src="${DEFAULT_LOGO}" class="${cls}" onerror="this.outerHTML='<div class=&quot;logo-fallback&quot;>🐾</div>'">`;
+}
+
+function isMine(ownerId){ return currentUser && ownerId===currentUser.uid; }
+function hasAccess(ownerId){ return isMine(ownerId) || myFriends.has(ownerId); }
+function visiblePets(){ return allPets.filter(p=>hasAccess(p.ownerId)); }
+function visibleFeedsForPet(petId){ return allFeeds.filter(f=>f.petId===petId).sort((a,b)=> (b.date+b.time).localeCompare(a.date+a.time)); }
+
+auth.onAuthStateChanged(async (user)=>{
+  currentUser = user;
+  if(user){
+    listenProfile(user);
+    listenUsers();
+    listenFriends();
+    listenInvites();
+    listenSentInvites();
+    listenPets();
+    listenFeeds();
+  } else {
+    [unsubProfile,unsubUsers,unsubPets,unsubFeeds,unsubFriends,unsubInvites,unsubSentInvites].forEach(u=>u&&u());
+    unsubProfile=unsubUsers=unsubPets=unsubFeeds=unsubFriends=unsubInvites=unsubSentInvites=null;
+    allUsers=[]; allPets=[]; allFeeds=[]; myFriends=new Set(); pendingInvitesToMe=[]; sentInvites=[];
+    view='list'; activeTab='pets';
+    renderAuth();
+  }
+});
+
+function listenProfile(user){
+  if(unsubProfile) unsubProfile();
+  unsubProfile = db.collection('users').doc(user.uid).onSnapshot(doc=>{
+    currentProfile = doc.exists ? doc.data() : {name:'未命名', email:user.email};
+    if(currentProfile && !currentProfile.color){
+      pickAvailableColor(user.uid).then(color=>{
+        db.collection('users').doc(user.uid).update({color}).catch(()=>{});
+      });
+    }
+    renderApp();
+  }, err=>{
+    console.error(err);
+    currentProfile = {name:'未命名', email:user.email};
+    renderApp();
+  });
+}
+function listenUsers(){
+  if(unsubUsers) unsubUsers();
+  unsubUsers = db.collection('users').onSnapshot(snap=>{
+    allUsers = snap.docs.map(d=>({uid:d.id, ...d.data()}));
+    renderCurrentView();
+  }, err=>console.error(err));
+}
+function listenFriends(){
+  if(unsubFriends) unsubFriends();
+  unsubFriends = db.collection('users').doc(currentUser.uid).collection('friends').onSnapshot(snap=>{
+    myFriends = new Set(snap.docs.map(d=>d.id));
+    renderCurrentView();
+  }, err=>console.error(err));
+}
+function listenInvites(){
+  if(unsubInvites) unsubInvites();
+  if(!currentUser.email) return;
+  unsubInvites = db.collection('invites').where('toEmail','==',currentUser.email).where('status','==','pending')
+    .onSnapshot(snap=>{
+      pendingInvitesToMe = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      const badge = document.getElementById('inviteBadge');
+      if(badge) badge.classList.toggle('hidden', pendingInvitesToMe.length===0);
+      const overlay = document.getElementById('friendsModalOverlay');
+      if(overlay) renderFriendsModalBody();
+    }, err=>console.error(err));
+}
+function listenSentInvites(){
+  if(unsubSentInvites) unsubSentInvites();
+  unsubSentInvites = db.collection('invites').where('fromUid','==',currentUser.uid).where('status','==','pending')
+    .onSnapshot(snap=>{
+      sentInvites = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      const overlay = document.getElementById('friendsModalOverlay');
+      if(overlay) renderFriendsModalBody();
+    }, err=>console.error(err));
+}
+function listenPets(){
+  if(unsubPets) unsubPets();
+  unsubPets = db.collection('pets').orderBy('createdAt','desc').onSnapshot(snap=>{
+    allPets = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderCurrentView();
+  }, err=>{ console.error(err); toast('讀取寵物資料時發生問題'); });
+}
+function listenFeeds(){
+  if(unsubFeeds) unsubFeeds();
+  unsubFeeds = db.collectionGroup('feeds').orderBy('createdAt','desc').limit(500).onSnapshot(snap=>{
+    allFeeds = snap.docs.map(d=>({id:d.id, petId:d.ref.parent.parent.id, ...d.data()}));
+    renderCurrentView();
+  }, err=>{ console.error(err); });
+}
+function renderCurrentView(){
+  if(!currentUser || !currentProfile) return;
+  if(!document.getElementById('page')){ renderApp(); return; }
+  if(activeTab==='pets'){
+    if(view==='detail') renderPetDetail();
+    else if(view==='addPet' || view==='editPet') { /* keep form as-is, don't re-render mid-typing */ }
+    else renderPetsList();
+  } else {
+    renderFeedTimeline();
+  }
+}
+
+/* ================= AUTH ================= */
+function renderAuth(){
+  const isReset = authMode==='reset';
+  root.innerHTML = `
+    <div class="auth-wrap">
+      <div class="auth-hero">
+        ${logoImgTag('logo-lg')}
+        <div class="eyebrow">一起,好好照顧牠</div>
+        <h1 class="display">毛孩日誌</h1>
+        <p>記錄寵物的餵食時間、吃了什麼。邀請家人朋友一起照顧,大家都能看到、都能記錄。</p>
+      </div>
+      <div class="card">
+        <div id="authError"></div>
+        ${isReset ? `<p style="font-size:13px;color:var(--ink-soft);margin:0 0 16px;line-height:1.6;">輸入註冊時用的 Email,我們會寄一封重設密碼的信給你。</p>` : ''}
+        <div id="registerFields" class="${authMode==='register'?'':'hidden'}">
+          <div class="field">
+            <label>你是誰？</label>
+            <input type="text" id="regName" placeholder="輸入你的名字或暱稱" maxlength="20">
+          </div>
+          <div class="field">
+            <label>邀請碼</label>
+            <input type="text" id="regInviteCode" placeholder="輸入邀請碼">
+          </div>
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="authEmail" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="field ${isReset?'hidden':''}">
+          <label>密碼</label>
+          <input type="password" id="authPass" placeholder="至少 6 個字元" autocomplete="current-password">
+        </div>
+        <button class="btn btn-primary" id="authSubmit">${authMode==='login'?'登入':authMode==='register'?'建立帳號':'寄送重設密碼信'}</button>
+        <div class="auth-toggle">
+          ${authMode==='login'
+            ? `還沒有帳號？<a id="toRegister">建立一個</a> ・ <a id="toReset">忘記密碼？</a>`
+            : `已經有帳號了？<a id="toLogin">直接登入</a>`}
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('authSubmit').onclick = handleAuthSubmit;
+  const tr = document.getElementById('toRegister'); if(tr) tr.onclick = ()=>{authMode='register'; renderAuth();};
+  const tl = document.getElementById('toLogin'); if(tl) tl.onclick = ()=>{authMode='login'; renderAuth();};
+  const trs = document.getElementById('toReset'); if(trs) trs.onclick = ()=>{authMode='reset'; renderAuth();};
+}
+
+async function handleAuthSubmit(){
+  const email = document.getElementById('authEmail').value.trim();
+  const errBox = document.getElementById('authError');
+  errBox.innerHTML = '';
+  const btn = document.getElementById('authSubmit');
+  const btnLabel = authMode==='login'?'登入':authMode==='register'?'建立帳號':'寄送重設密碼信';
+
+  if(authMode==='reset'){
+    if(!email){ errBox.innerHTML = `<div class="auth-err">請輸入 Email</div>`; return; }
+    btn.disabled = true; btn.textContent = '寄送中…';
+    try{
+      await auth.sendPasswordResetEmail(email);
+      errBox.innerHTML = `<div class="auth-ok">已寄出重設密碼信,請到 ${esc(email)} 收信(記得看一下垃圾郵件匣)。</div>`;
+      btn.textContent = '已寄出 ✓';
+      setTimeout(()=>{ authMode='login'; renderAuth(); }, 2500);
+      return;
+    }catch(e){
+      const msgMap = {'auth/invalid-email':'Email 格式不正確','auth/user-not-found':'找不到這個 Email 的帳號'};
+      errBox.innerHTML = `<div class="auth-err">${msgMap[e.code] || ('發生錯誤：'+e.message)}</div>`;
+      btn.disabled = false; btn.textContent = btnLabel;
+      return;
+    }
+  }
+
+  const pass = document.getElementById('authPass').value;
+  if(!email || !pass){ errBox.innerHTML = `<div class="auth-err">請輸入 Email 和密碼</div>`; return; }
+  btn.disabled = true; btn.textContent = '處理中…';
+  try{
+    if(authMode==='login'){
+      await auth.signInWithEmailAndPassword(email, pass);
+    } else {
+      const name = document.getElementById('regName').value.trim();
+      if(!name){ errBox.innerHTML = `<div class="auth-err">請輸入你的名字或暱稱</div>`; btn.disabled=false; btn.textContent=btnLabel; return; }
+      const inviteCode = document.getElementById('regInviteCode').value.trim();
+      if(inviteCode !== INVITE_CODE){ errBox.innerHTML = `<div class="auth-err">邀請碼不正確</div>`; btn.disabled=false; btn.textContent=btnLabel; return; }
+      const cred = await auth.createUserWithEmailAndPassword(email, pass);
+      const autoColor = await pickAvailableColor(cred.user.uid);
+      await db.collection('users').doc(cred.user.uid).set({
+        name, email, color: autoColor, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+  }catch(e){
+    const msgMap = {
+      'auth/invalid-email':'Email 格式不正確','auth/user-not-found':'找不到這個帳號,請確認 Email 或改成註冊',
+      'auth/wrong-password':'密碼不正確','auth/invalid-credential':'Email 或密碼不正確',
+      'auth/email-already-in-use':'這個 Email 已經註冊過了,請改成登入','auth/weak-password':'密碼至少需要 6 個字元',
+    };
+    errBox.innerHTML = `<div class="auth-err">${msgMap[e.code] || ('發生錯誤：'+e.message)}</div>`;
+  }
+  btn.disabled = false; btn.textContent = btnLabel;
+}
+
+/* ================= APP SHELL ================= */
+function renderApp(){
+  root.innerHTML = `
+    <div class="topbar">
+      <div class="brand">
+        ${logoImgTag('logo')}
+        <div>
+          <h1>毛孩日誌</h1>
+          <div class="tag">大家一起顧</div>
+        </div>
+      </div>
+      <div class="who">
+        <button class="icon-btn" id="friendsBtn" title="好友">👥<span class="invite-badge ${pendingInvitesToMe.length===0?'hidden':''}" id="inviteBadge"></span></button>
+        <button class="profile-trigger" id="profileBtn">
+          ${currentProfile.avatar ? `<img class="avatar-mini" src="${currentProfile.avatar}">` : `<span class="avatar-mini" style="display:inline-flex;align-items:center;justify-content:center;background:${nameColor(currentUser.uid)};color:#fff;font-size:11px;">${esc((currentProfile.name||'?').slice(0,1))}</span>`}
+          ${esc(currentProfile.name)}
+        </button>
+        <button id="logoutBtn">登出</button>
+      </div>
+    </div>
+    <div id="page" class="page"></div>
+    <div class="tabbar"><div class="tabbar-inner">
+      <button class="tab ${activeTab==='pets'?'active':''}" data-tab="pets"><span class="ic">🐾</span>我的寵物</button>
+      <button class="tab ${activeTab==='feed'?'active':''}" data-tab="feed"><span class="ic">🍖</span>餵食動態</button>
+    </div></div>
+  `;
+  document.getElementById('logoutBtn').onclick = ()=>auth.signOut();
+  document.getElementById('profileBtn').onclick = ()=>openProfileModal();
+  document.getElementById('friendsBtn').onclick = ()=>openFriendsModal();
+  document.querySelectorAll('.tab').forEach(b=>{
+    b.onclick = ()=>{ activeTab = b.dataset.tab; view='list'; renderApp(); };
+  });
+  if(activeTab==='pets'){
+    if(view==='detail') renderPetDetail();
+    else renderPetsList();
+  } else {
+    renderFeedTimeline();
+  }
+}
+
+/* ================= PROFILE MODAL ================= */
+function openProfileModal(){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'profileModalOverlay';
+  const initialColor = currentProfile.color || nameColor(currentUser.uid);
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <div class="modal-head"><h3 class="display">編輯個人資料</h3><button class="modal-close" id="closeProfileModal">✕</button></div>
+      <div class="avatar-edit">
+        <div class="avatar-preview" id="avatarPreview">${currentProfile.avatar ? `<img src="${currentProfile.avatar}">` : '🙂'}</div>
+        <button class="btn-ghost" id="chooseAvatarBtn">上傳頭像</button>
+        <input type="file" id="avatarInput" accept="image/*" style="display:none">
+      </div>
+      <div class="field"><label>使用者名稱</label><input type="text" id="profileNameInput" value="${esc(currentProfile.name||'')}" maxlength="20"></div>
+      <div class="field"><label>代表色</label>
+        <div class="color-picker" id="colorPicker">
+          ${PALETTE.map(c=>`<button type="button" class="color-swatch ${c===initialColor?'selected':''}" data-color="${c}" style="background:${c}"></button>`).join('')}
+        </div>
+      </div>
+      <div class="submit-row"><button class="btn btn-primary" id="saveProfileBtn">儲存</button></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  let newAvatar = currentProfile.avatar || null;
+  let selectedColor = initialColor;
+  document.getElementById('closeProfileModal').onclick = ()=>overlay.remove();
+  overlay.onclick = (ev)=>{ if(ev.target===overlay) overlay.remove(); };
+  document.getElementById('chooseAvatarBtn').onclick = ()=>document.getElementById('avatarInput').click();
+  document.getElementById('avatarInput').onchange = (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const scale = Math.min(1, 320/img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width*scale; canvas.height = img.height*scale;
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        newAvatar = canvas.toDataURL('image/jpeg', 0.82);
+        document.getElementById('avatarPreview').innerHTML = `<img src="${newAvatar}">`;
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  document.getElementById('colorPicker').querySelectorAll('.color-swatch').forEach(sw=>{
+    sw.onclick = ()=>{
+      selectedColor = sw.dataset.color;
+      document.getElementById('colorPicker').querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));
+      sw.classList.add('selected');
+    };
+  });
+  document.getElementById('saveProfileBtn').onclick = async ()=>{
+    const btn = document.getElementById('saveProfileBtn');
+    const name = document.getElementById('profileNameInput').value.trim();
+    if(!name){ toast('請輸入名字'); return; }
+    btn.disabled = true; btn.textContent = '儲存中…';
+    try{
+      await db.collection('users').doc(currentUser.uid).update({ name, avatar: newAvatar || null, color: selectedColor });
+      currentProfile.name=name; currentProfile.avatar=newAvatar||null; currentProfile.color=selectedColor;
+      overlay.remove();
+      toast('已更新個人資料 🐾');
+      renderApp();
+    }catch(e){
+      console.error(e); toast('更新失敗：'+e.message);
+      btn.disabled=false; btn.textContent='儲存';
+    }
+  };
+}
+
+/* ================= FRIENDS ================= */
+function openFriendsModal(){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'friendsModalOverlay';
+  overlay.innerHTML = `<div class="modal-card"><div class="modal-head"><h3 class="display">好友</h3><button class="modal-close" id="closeFriendsModal">✕</button></div><div id="friendsModalBody"></div></div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('closeFriendsModal').onclick = ()=>overlay.remove();
+  overlay.onclick = (ev)=>{ if(ev.target===overlay) overlay.remove(); };
+  renderFriendsModalBody();
+}
+function renderFriendsModalBody(){
+  const body = document.getElementById('friendsModalBody');
+  if(!body) return;
+  const friendUsers = allUsers.filter(u=>myFriends.has(u.uid));
+  body.innerHTML = `
+    <p style="font-size:12px;color:var(--ink-soft);line-height:1.6;margin:0 0 14px;">好友可以看到彼此的所有寵物,也能一起新增、編輯、刪除紀錄。</p>
+    ${pendingInvitesToMe.length>0 ? `
+      <div class="friends-section">
+        <div class="friends-section-title">邀請通知</div>
+        ${pendingInvitesToMe.map(inv=>`
+          <div class="invite-row"><span>${esc(inv.fromName)} 想加你為好友</span>
+            <div class="invite-actions"><button class="btn-accept" data-id="${inv.id}">接受</button><button class="btn-decline" data-id="${inv.id}">拒絕</button></div>
+          </div>`).join('')}
+      </div>` : ''}
+    <div class="friends-section">
+      <div class="friends-section-title">我的好友${friendUsers.length? '（'+friendUsers.length+'）':''}</div>
+      ${friendUsers.length===0 ? `<div class="history-empty">還沒有好友,邀請一個吧</div>` : friendUsers.map(u=>`
+        <div class="friend-row">
+          ${u.avatar ? `<img class="avatar-mini" src="${u.avatar}">` : `<span class="avatar-mini" style="display:inline-flex;align-items:center;justify-content:center;background:${nameColor(u.uid)};color:#fff;font-size:11px;">${esc((u.name||'?').slice(0,1))}</span>`}
+          <span class="friend-row-name">${esc(u.name)}</span>
+          <button class="friend-remove" data-uid="${u.uid}" data-name="${esc(u.name)}">移除</button>
+        </div>`).join('')}
+    </div>
+    <div class="friends-section">
+      <div class="friends-section-title">邀請新朋友</div>
+      <div class="field compact"><input type="email" id="inviteEmail" placeholder="對方的 Email（必須已經註冊過）"></div>
+      <button class="btn btn-primary" id="sendInviteBtn">送出邀請</button>
+    </div>
+    ${sentInvites.length>0 ? `
+      <div class="friends-section">
+        <div class="friends-section-title">已送出、等待中的邀請</div>
+        ${sentInvites.map(inv=>`<div class="invite-row"><span>${esc(inv.toEmail)}</span><div class="invite-actions"><button class="btn-decline" data-revoke="${inv.id}">收回</button></div></div>`).join('')}
+      </div>` : ''}
+  `;
+  body.querySelectorAll('.btn-accept').forEach(b=>b.onclick=()=>acceptInvite(b.dataset.id));
+  body.querySelectorAll('.btn-decline[data-id]').forEach(b=>b.onclick=()=>declineInvite(b.dataset.id));
+  body.querySelectorAll('.btn-decline[data-revoke]').forEach(b=>b.onclick=()=>revokeInvite(b.dataset.revoke));
+  document.getElementById('sendInviteBtn').onclick = sendInvite;
+  body.querySelectorAll('.friend-remove').forEach(b=>b.onclick=()=>removeFriend(b.dataset.uid, b.dataset.name));
+}
+async function sendInvite(){
+  const btn = document.getElementById('sendInviteBtn');
+  const input = document.getElementById('inviteEmail');
+  const email = input.value.trim().toLowerCase();
+  if(!email){ toast('請輸入 Email'); return; }
+  if(email === (currentUser.email||'').toLowerCase()){ toast('不能邀請自己'); return; }
+  const already = allUsers.find(u=>myFriends.has(u.uid) && (u.email||'').toLowerCase()===email);
+  if(already){ toast('你們已經是好友了'); return; }
+  if(sentInvites.find(inv=>inv.toEmail===email)){ toast('已經邀請過這個 Email 了,還在等待對方接受'); return; }
+  btn.disabled = true; btn.textContent = '確認中…';
+  try{
+    const userSnap = await db.collection('users').where('email','==',email).limit(1).get();
+    if(userSnap.empty){ toast('這個 Email 還沒有註冊帳號,請先請對方註冊再邀請'); btn.disabled=false; btn.textContent='送出邀請'; return; }
+    btn.textContent = '送出中…';
+    await db.collection('invites').add({
+      fromUid: currentUser.uid, fromName: currentProfile.name, toEmail: email,
+      status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('邀請已送出,等對方登入接受 💌');
+    input.value = '';
+  }catch(e){ console.error(e); toast('送出失敗：'+e.message); }
+  btn.disabled = false; btn.textContent = '送出邀請';
+}
+async function acceptInvite(inviteId){
+  const invite = pendingInvitesToMe.find(x=>x.id===inviteId);
+  if(!invite) return;
+  try{
+    const batch = db.batch();
+    batch.set(db.collection('users').doc(invite.fromUid).collection('friends').doc(currentUser.uid), {since: firebase.firestore.FieldValue.serverTimestamp()});
+    batch.set(db.collection('users').doc(currentUser.uid).collection('friends').doc(invite.fromUid), {since: firebase.firestore.FieldValue.serverTimestamp()});
+    batch.update(db.collection('invites').doc(inviteId), {status:'accepted'});
+    await batch.commit();
+    toast(`你和 ${invite.fromName} 現在是好友了 🎉`);
+  }catch(e){ console.error(e); toast('操作失敗：'+e.message); }
+}
+async function declineInvite(inviteId){
+  try{ await db.collection('invites').doc(inviteId).update({status:'declined'}); }
+  catch(e){ toast('操作失敗：'+e.message); }
+}
+async function revokeInvite(inviteId){
+  try{ await db.collection('invites').doc(inviteId).delete(); toast('已收回邀請'); }
+  catch(e){ toast('操作失敗：'+e.message); }
+}
+async function removeFriend(otherUid, otherName){
+  if(!confirm(`確定要把「${otherName}」從好友移除嗎？之後就不會再看到彼此的寵物了。`)) return;
+  try{
+    const batch = db.batch();
+    batch.delete(db.collection('users').doc(currentUser.uid).collection('friends').doc(otherUid));
+    batch.delete(db.collection('users').doc(otherUid).collection('friends').doc(currentUser.uid));
+    await batch.commit();
+    toast('已移除好友');
+  }catch(e){ console.error(e); toast('操作失敗：'+e.message); }
+}
+
+/* ================= PETS LIST ================= */
+function renderPetsList(){
+  view='list';
+  const page = document.getElementById('page');
+  if(!page) return;
+  const pets = visiblePets();
+  page.innerHTML = `
+    <div class="section-title">我的寵物<button class="add-fab" id="addPetBtn">＋ 新增寵物</button></div>
+    ${pets.length===0
+      ? `<div class="empty-state"><span class="ic">🐾</span>還沒有任何寵物<br>點右上角「新增寵物」開始記錄吧</div>`
+      : `<div class="pet-grid">${pets.map(petCardHtml).join('')}</div>`}
+  `;
+  document.getElementById('addPetBtn').onclick = ()=>{ view='addPet'; editingPet=null; renderAddPetForm(); };
+  page.querySelectorAll('.pet-card').forEach(c=>{
+    c.onclick = ()=>{ selectedPetId = c.dataset.id; view='detail'; renderPetDetail(); };
+  });
+}
+function petCardHtml(p){
+  const ownerTag = isMine(p.ownerId) ? '' : `<div class="pet-owner-tag">${userAvatar(p.ownerId)?`<img src="${userAvatar(p.ownerId)}">`:'👤'} ${esc(userName(p.ownerId))}</div>`;
+  const speciesLabel = p.species==='其他' ? (p.speciesOther||'其他') : p.species;
+  return `
+    <div class="pet-card" data-id="${p.id}">
+      ${p.photo ? `<img class="pet-photo" src="${p.photo}">` : `<div class="pet-photo-fallback">${SPECIES_ICON[p.species]||'🐾'}</div>`}
+      <div class="pet-name">${esc(p.name)}</div>
+      <div class="pet-meta">${esc(speciesLabel)}${p.breed? ' · '+esc(p.breed):''}</div>
+      ${ownerTag}
+    </div>
+  `;
+}
+
+/* ================= PET DETAIL ================= */
+function renderPetDetail(){
+  const page = document.getElementById('page');
+  if(!page) return;
+  const p = allPets.find(x=>x.id===selectedPetId);
+  if(!p || !hasAccess(p.ownerId)){ view='list'; renderPetsList(); return; }
+  const speciesLabel = p.species==='其他' ? (p.speciesOther||'其他') : p.species;
+  const feeds = visibleFeedsForPet(p.id);
+
+  page.innerHTML = `
+    <div class="back-row"><button class="back-btn" id="backToList">← 回寵物列表</button></div>
+    <div class="pet-detail-hero">
+      ${p.photo ? `<img class="pet-detail-photo" src="${p.photo}">` : `<div class="pet-detail-photo-fallback">${SPECIES_ICON[p.species]||'🐾'}</div>`}
+      <div class="pet-detail-name">${esc(p.name)}</div>
+      <div class="pet-detail-sub">${esc(speciesLabel)}${p.breed? ' · '+esc(p.breed):''}${p.gender? ' · '+esc(p.gender):''} ・ 由 ${esc(userName(p.ownerId))} 建立</div>
+      <div class="pet-info-grid">
+        <div class="pet-info-item"><div class="lbl">生日</div><div class="val">${p.birthday ? esc(p.birthday) : '未填寫'}</div></div>
+        <div class="pet-info-item"><div class="lbl">體重</div><div class="val">${p.weight ? p.weight+' kg' : '未填寫'}</div></div>
+      </div>
+      ${p.notes ? `<div class="pet-note-block"><div class="lbl">備註</div>${esc(p.notes)}</div>` : ''}
+      ${p.vaccineNotes ? `<div class="pet-note-block"><div class="lbl">疫苗 / 醫療紀錄</div>${esc(p.vaccineNotes)}</div>` : ''}
+      <div class="pet-detail-actions">
+        <button class="edit" id="editPetBtn">✎ 編輯資料</button>
+        <button class="del" id="delPetBtn">🗑 刪除寵物</button>
+      </div>
+    </div>
+
+    <div class="section-title">餵食紀錄</div>
+    <div class="form-card" style="margin-bottom:16px;">
+      <div class="grid2">
+        <div class="field compact"><label>日期</label><input type="date" id="fd_date" value="${todayStr()}"></div>
+        <div class="field compact"><label>時間</label><input type="time" id="fd_time" value="${nowTimeStr()}"></div>
+      </div>
+      <div class="field compact"><label>吃了什麼</label><textarea id="fd_food" placeholder="例如：飼料 50g、雞胸肉罐頭"></textarea></div>
+      <div class="grid2">
+        <div class="field compact"><label>份量（選填）</label><input type="text" id="fd_amount" placeholder="例如 50g 或 1/2 罐"></div>
+        <div class="field compact"><label>備註（選填）</label><input type="text" id="fd_note" placeholder="任何想記下的小事"></div>
+      </div>
+      <div class="submit-row"><button class="btn btn-primary" id="submitFeed">儲存這筆餵食紀錄</button></div>
+    </div>
+
+    ${feeds.length===0 ? `<div class="empty-state"><span class="ic">🍖</span>還沒有餵食紀錄</div>` : renderFeedGroups(feeds, false)}
+  `;
+  document.getElementById('backToList').onclick = ()=>{ view='list'; renderPetsList(); };
+  document.getElementById('editPetBtn').onclick = ()=>{ view='editPet'; editingPet=p; renderAddPetForm(); };
+  document.getElementById('delPetBtn').onclick = ()=>deletePet(p);
+  document.getElementById('submitFeed').onclick = ()=>submitFeed(p.id);
+  bindFeedDeleteButtons(page);
+}
+
+function renderFeedGroups(feeds, showPetName){
+  const byDate = {};
+  feeds.forEach(f=>{ (byDate[f.date]=byDate[f.date]||[]).push(f); });
+  const dates = Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+  return dates.map(date=>`
+    <div class="day-group">
+      <div class="day-label">${formatDate(date)}</div>
+      ${byDate[date].sort((a,b)=>b.time.localeCompare(a.time)).map(f=>feedCardHtml(f, showPetName)).join('')}
+    </div>
+  `).join('');
+}
+function feedCardHtml(f, showPetName){
+  const pet = allPets.find(p=>p.id===f.petId);
+  const mine = f.uid === (currentUser && currentUser.uid);
+  return `
+    <div class="feed-card">
+      <div class="feed-icon">${pet ? (SPECIES_ICON[pet.species]||'🐾') : '🐾'}</div>
+      <div class="feed-body">
+        <div class="feed-top">
+          <span class="badge" style="background:${nameColor(f.uid)}22;color:${nameColor(f.uid)}">${esc(f.name)}</span>
+          <span class="time-tag">${esc(f.time||'')}</span>
+          ${showPetName && pet ? `<span class="pet-tag">${esc(pet.name)}</span>` : ''}
+        </div>
+        <div class="feed-food">${esc(f.food||'')}</div>
+        ${f.amount ? `<div class="feed-amount">份量：${esc(f.amount)}</div>` : ''}
+        ${f.note ? `<div class="feed-note">${esc(f.note)}</div>` : ''}
+        ${mine || (pet && hasAccess(pet.ownerId)) ? `<div class="feed-actions"><button class="del-btn" data-fid="${f.id}" data-pid="${f.petId}">刪除</button></div>` : ''}
+      </div>
+    </div>
+  `;
+}
+function bindFeedDeleteButtons(container){
+  container.querySelectorAll('.del-btn[data-fid]').forEach(b=>{
+    b.onclick = ()=>deleteFeed(b.dataset.pid, b.dataset.fid);
+  });
+}
+function formatDate(d){
+  const dt = new Date(d+'T00:00:00');
+  const days = ['週日','週一','週二','週三','週四','週五','週六'];
+  return `${dt.getMonth()+1}月${dt.getDate()}日 · ${days[dt.getDay()]}`;
+}
+
+async function submitFeed(petId){
+  const btn = document.getElementById('submitFeed');
+  const date = document.getElementById('fd_date').value;
+  const time = document.getElementById('fd_time').value;
+  const food = document.getElementById('fd_food').value.trim();
+  if(!date || !time){ toast('請選擇日期和時間'); return; }
+  if(!food){ toast('請填寫吃了什麼'); return; }
+  btn.disabled = true; btn.textContent = '儲存中…';
+  try{
+    await db.collection('pets').doc(petId).collection('feeds').add({
+      uid: currentUser.uid, name: currentProfile.name,
+      date, time, food,
+      amount: document.getElementById('fd_amount').value.trim(),
+      note: document.getElementById('fd_note').value.trim(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('已儲存這筆餵食紀錄 🍖');
+    renderPetDetail();
+  }catch(e){
+    console.error(e); toast('儲存失敗：'+e.message);
+    btn.disabled = false; btn.textContent = '儲存這筆餵食紀錄';
+  }
+}
+async function deleteFeed(petId, feedId){
+  if(!confirm('確定要刪除這筆餵食紀錄嗎？')) return;
+  try{
+    await db.collection('pets').doc(petId).collection('feeds').doc(feedId).delete();
+    toast('已刪除');
+  }catch(e){ toast('刪除失敗：'+e.message); }
+}
+
+/* ================= ADD / EDIT PET ================= */
+let editingPet = null;
+function renderAddPetForm(){
+  const page = document.getElementById('page');
+  if(!page) return;
+  const p = editingPet;
+  petPhotoDataUrl = p ? (p.photo || null) : null;
+  page.innerHTML = `
+    <div class="back-row"><button class="back-btn" id="backFromForm">← 取消</button></div>
+    <div class="section-title">${p? '編輯寵物資料':'新增寵物'}</div>
+    <div class="form-card">
+      <div class="field compact"><label>照片</label>
+        <div class="photo-box ${petPhotoDataUrl?'has-img':''}" id="petPhotoBox">
+          ${petPhotoDataUrl ? `<img src="${petPhotoDataUrl}"><button class="photo-remove" id="removePetPhoto">✕</button>` : `<div class="placeholder"><span class="ic">📷</span>點一下上傳照片</div>`}
+        </div>
+        <input type="file" id="p_photo" accept="image/*" style="display:none">
+      </div>
+      <div class="field compact"><label>名字</label><input type="text" id="p_name" placeholder="例如：豆豆" value="${p? esc(p.name):''}"></div>
+      <div class="grid2">
+        <div class="field compact"><label>種類</label>
+          <select id="p_species">${SPECIES.map(s=>`<option ${p&&p.species===s?'selected':''}>${s}</option>`).join('')}</select>
+        </div>
+        <div class="field compact hidden" id="p_species_other_wrap"><label>請說明種類</label><input type="text" id="p_species_other" value="${p? esc(p.speciesOther||''):''}"></div>
+        <div class="field compact"><label>性別</label>
+          <select id="p_gender">
+            <option ${p&&p.gender==='公'?'selected':''}>公</option>
+            <option ${p&&p.gender==='母'?'selected':''}>母</option>
+            <option ${!p || p.gender==='未知'?'selected':''}>未知</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field compact"><label>品種（選填）</label><input type="text" id="p_breed" placeholder="例如：柯基" value="${p? esc(p.breed||''):''}"></div>
+        <div class="field compact"><label>體重 kg（選填）</label><input type="number" step="0.1" min="0" id="p_weight" value="${p&&p.weight?p.weight:''}"></div>
+      </div>
+      <div class="field compact"><label>生日（選填）</label><input type="date" id="p_birthday" value="${p&&p.birthday?p.birthday:''}"></div>
+      <div class="field compact"><label>疫苗 / 醫療紀錄（選填）</label><textarea id="p_vaccine" placeholder="例如：2026/03 施打狂犬病疫苗">${p? esc(p.vaccineNotes||''):''}</textarea></div>
+      <div class="field compact"><label>備註（選填）</label><textarea id="p_notes" placeholder="個性、飲食禁忌、任何想記下的事">${p? esc(p.notes||''):''}</textarea></div>
+      <div class="submit-row"><button class="btn btn-primary" id="submitPet">${p? '更新寵物資料':'儲存這隻寵物'}</button></div>
+    </div>
+  `;
+  document.getElementById('backFromForm').onclick = ()=>{ editingPet=null; view = p? 'detail':'list'; if(view==='detail') renderPetDetail(); else renderPetsList(); };
+
+  const speciesSel = document.getElementById('p_species');
+  const otherWrap = document.getElementById('p_species_other_wrap');
+  const syncSpecies = ()=> otherWrap.classList.toggle('hidden', speciesSel.value!=='其他');
+  speciesSel.onchange = syncSpecies; syncSpecies();
+
+  const photoBox = document.getElementById('petPhotoBox');
+  const fileInput = document.getElementById('p_photo');
+  photoBox.onclick = ()=>fileInput.click();
+  fileInput.onchange = (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const scale = Math.min(1, 800/img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width*scale; canvas.height = img.height*scale;
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        petPhotoDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        photoBox.classList.add('has-img');
+        photoBox.innerHTML = `<img src="${petPhotoDataUrl}"><button class="photo-remove" id="removePetPhoto">✕</button>`;
+        document.getElementById('removePetPhoto').onclick = (ev2)=>{
+          ev2.stopPropagation(); petPhotoDataUrl=null;
+          photoBox.classList.remove('has-img');
+          photoBox.innerHTML = `<div class="placeholder"><span class="ic">📷</span>點一下上傳照片</div>`;
+        };
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  const rm = document.getElementById('removePetPhoto');
+  if(rm) rm.onclick = (ev2)=>{
+    ev2.stopPropagation(); petPhotoDataUrl=null;
+    photoBox.classList.remove('has-img');
+    photoBox.innerHTML = `<div class="placeholder"><span class="ic">📷</span>點一下上傳照片</div>`;
+  };
+
+  document.getElementById('submitPet').onclick = submitPet;
+}
+
+async function submitPet(){
+  const btn = document.getElementById('submitPet');
+  const name = document.getElementById('p_name').value.trim();
+  if(!name){ toast('請輸入寵物名字'); return; }
+  const species = document.getElementById('p_species').value;
+  const speciesOther = species==='其他' ? document.getElementById('p_species_other').value.trim() : '';
+  const isEdit = !!editingPet;
+  btn.disabled = true; btn.textContent = isEdit? '更新中…':'儲存中…';
+  const weightVal = document.getElementById('p_weight').value;
+  const data = {
+    name, species, speciesOther,
+    gender: document.getElementById('p_gender').value,
+    breed: document.getElementById('p_breed').value.trim(),
+    weight: weightVal===''? null : Number(weightVal),
+    birthday: document.getElementById('p_birthday').value,
+    vaccineNotes: document.getElementById('p_vaccine').value.trim(),
+    notes: document.getElementById('p_notes').value.trim(),
+    photo: petPhotoDataUrl || null,
+  };
+  try{
+    if(isEdit){
+      await db.collection('pets').doc(editingPet.id).update(data);
+      toast('已更新寵物資料 🐾');
+      selectedPetId = editingPet.id;
+      editingPet = null; view='detail';
+      renderPetDetail();
+    } else {
+      data.ownerId = currentUser.uid;
+      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      const ref = await db.collection('pets').add(data);
+      toast('已新增寵物 🎉');
+      selectedPetId = ref.id; view='detail';
+      renderPetDetail();
+    }
+  }catch(e){
+    console.error(e); toast('儲存失敗：'+e.message);
+    btn.disabled = false; btn.textContent = isEdit? '更新寵物資料':'儲存這隻寵物';
+  }
+}
+
+async function deletePet(p){
+  if(!confirm(`確定要刪除「${p.name}」嗎？相關的餵食紀錄也會一併刪除,無法復原。`)) return;
+  try{
+    const feedsSnap = await db.collection('pets').doc(p.id).collection('feeds').get();
+    if(!feedsSnap.empty){
+      const batch = db.batch();
+      feedsSnap.forEach(d=>batch.delete(d.ref));
+      await batch.commit();
+    }
+    await db.collection('pets').doc(p.id).delete();
+    toast('已刪除');
+    view='list'; renderPetsList();
+  }catch(e){ console.error(e); toast('刪除失敗：'+e.message); }
+}
+
+/* ================= FEED TIMELINE ================= */
+function renderFeedTimeline(){
+  const page = document.getElementById('page');
+  if(!page) return;
+  const pets = visiblePets();
+  const petIds = new Set(pets.map(p=>p.id));
+  const feeds = allFeeds.filter(f=>petIds.has(f.petId));
+
+  if(pets.length===0){
+    page.innerHTML = `<div class="empty-state"><span class="ic">🍖</span>還沒有寵物<br>先到「我的寵物」新增一隻吧</div>`;
+    return;
+  }
+  page.innerHTML = `
+    <div class="section-title">餵食動態</div>
+    <div class="feed-quick">
+      <select id="quickPetSel">${pets.map(p=>`<option value="${p.id}" ${feedQuickPetId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
+      <button class="add-fab" id="quickAddBtn" style="white-space:nowrap;">＋ 新增紀錄</button>
+    </div>
+    ${feeds.length===0 ? `<div class="empty-state"><span class="ic">🍖</span>還沒有任何餵食紀錄</div>` : renderFeedGroups(feeds, true)}
+  `;
+  document.getElementById('quickAddBtn').onclick = ()=>{
+    const sel = document.getElementById('quickPetSel');
+    selectedPetId = sel.value; feedQuickPetId = sel.value;
+    activeTab = 'pets'; view = 'detail';
+    renderApp();
+  };
+  bindFeedDeleteButtons(page);
+}
+
+root.innerHTML = `<div class="loading">載入中…</div>`;
+</script>
+</body>
+</html>
