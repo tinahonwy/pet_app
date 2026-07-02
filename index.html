@@ -183,6 +183,11 @@
   .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--honey-soft);color:#8A6A1E;}
   .time-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--paper);color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;}
   .pet-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--moss-soft);color:var(--moss-deep);}
+  .type-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;}
+  .type-tag.type-meal{background:var(--clay-soft);color:var(--clay-deep);}
+  .type-tag.type-vet{background:#E4D9F0;color:#5A3E82;}
+  .type-tag.type-med{background:var(--honey-soft);color:#8A6A1E;}
+  .type-tag.type-other{background:var(--moss-soft);color:var(--moss-deep);}
   .feed-food{font-size:14.5px;font-weight:500;margin:4px 0 2px;line-height:1.4;}
   .feed-amount{font-size:12px;color:var(--ink-soft);}
   .feed-note{font-size:12px;color:var(--ink-soft);margin-top:4px;}
@@ -207,6 +212,33 @@
   .friend-remove{background:none;border:none;color:#B7AF9E;font-size:11.5px;cursor:pointer;text-decoration:underline;flex-shrink:0;}
   .friend-remove:hover{color:var(--err);}
   .history-empty{font-size:12.5px;color:var(--ink-soft);text-align:center;padding:14px 6px;}
+
+  .seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px;margin-bottom:14px;box-shadow:var(--shadow);gap:2px;}
+  .seg button{flex:1;border:none;background:none;padding:9px 2px;border-radius:10px;font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .seg button .ic{font-size:16px;}
+  .seg button.active{background:var(--moss);color:#fff;}
+  .seg button.active.type-vet{background:var(--clay);}
+  .seg button.active.type-med{background:var(--honey);}
+  .seg button.active.type-other{background:#7D5BA6;}
+
+  .star-picker{display:flex;gap:4px;}
+  .star-btn{background:none;border:none;font-size:24px;line-height:1;cursor:pointer;padding:2px;color:var(--honey);}
+  .star-btn:active{transform:scale(0.9);}
+
+  .chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .cat-chip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;}
+  .cat-chip:hover{border-color:var(--moss);color:var(--moss-deep);}
+
+  .type-filter{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+  .type-filter .chip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);padding:7px 14px;border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;}
+  .type-filter .chip.active{color:#fff;border-color:transparent;background:var(--ink);}
+
+  .feed-icon.type-meal{background:var(--clay-soft);color:var(--clay-deep);}
+  .feed-icon.type-vet{background:#E4D9F0;color:#5A3E82;}
+  .feed-icon.type-med{background:var(--honey-soft);color:#8A6A1E;}
+  .feed-icon.type-other{background:var(--moss-soft);color:var(--moss-deep);}
+  .log-stars{color:var(--honey);font-size:13px;letter-spacing:1px;}
+  .log-cost{background:var(--paper);padding:2px 8px;border-radius:8px;font-size:11.5px;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-weight:600;}
 
   .loading{display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--ink-soft);font-size:14px;}
   .hidden{display:none !important;}
@@ -235,6 +267,11 @@ const DEFAULT_LOGO = "./PLOGO.png";
 const SPECIES = ["狗","貓","兔子","鳥","倉鼠","魚","其他"];
 const SPECIES_ICON = {"狗":"🐶","貓":"🐱","兔子":"🐰","鳥":"🐦","倉鼠":"🐹","魚":"🐟","其他":"🐾"};
 const PALETTE = ["#4C6B3F","#BE7A46","#C99A3E","#3E7CA6","#7D5BA6","#AE4A34","#5C8A6B","#B65A82"];
+const LOG_TYPES = ["meal","vet","med","other"];
+const LOG_TYPE_LABEL = {meal:"飲食", vet:"看診", med:"用藥", other:"其他支出"};
+const LOG_TYPE_ICON = {meal:"🍖", vet:"🩺", med:"💊", other:"🧾"};
+const LEFTOVER_OPTIONS = ["","吃光光","剩一點","剩一半","剩大半","幾乎沒吃"];
+const OTHER_CAT_SUGGESTIONS = ["用品","美容","保險","住宿","交通"];
 
 function esc(s){return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function todayStr(){
@@ -275,12 +312,12 @@ let currentUser = null;
 let currentProfile = null;
 let allUsers = [];
 let allPets = [];
-let allFeeds = [];
+let allLogs = [];
 let myFriends = new Set();
 let pendingInvitesToMe = [];
 let sentInvites = [];
 
-let unsubProfile=null, unsubUsers=null, unsubPets=null, unsubFeeds=null, unsubFriends=null, unsubInvites=null, unsubSentInvites=null;
+let unsubProfile=null, unsubUsers=null, unsubPets=null, unsubLogs=null, unsubFriends=null, unsubInvites=null, unsubSentInvites=null;
 
 let authMode = 'login';
 let activeTab = 'pets';
@@ -288,6 +325,8 @@ let view = 'list'; // list | detail | addPet | editPet
 let selectedPetId = null;
 let petPhotoDataUrl = null;
 let feedQuickPetId = '';
+let addLogType = 'meal';
+let mealRatingValue = 0;
 
 const root = document.getElementById('root');
 
@@ -304,7 +343,28 @@ function logoImgTag(cls){
 function isMine(ownerId){ return currentUser && ownerId===currentUser.uid; }
 function hasAccess(ownerId){ return isMine(ownerId) || myFriends.has(ownerId); }
 function visiblePets(){ return allPets.filter(p=>hasAccess(p.ownerId)); }
-function visibleFeedsForPet(petId){ return allFeeds.filter(f=>f.petId===petId).sort((a,b)=> (b.date+b.time).localeCompare(a.date+a.time)); }
+function visibleLogsForPet(petId){ return allLogs.filter(f=>f.petId===petId).sort((a,b)=> (b.date+b.time).localeCompare(a.date+a.time)); }
+function getMyMealHistory(petId){
+  const seen = new Set();
+  const list = [];
+  allLogs.filter(x=>x.type==='meal' && x.petId===petId).forEach(x=>{
+    const key = (x.food||'').trim();
+    if(!key || seen.has(key)) return;
+    seen.add(key);
+    list.push(x);
+  });
+  return list.slice(0, 25);
+}
+function getOtherCategoryHistory(){
+  const seen = new Set(OTHER_CAT_SUGGESTIONS);
+  const list = [...OTHER_CAT_SUGGESTIONS];
+  allLogs.filter(x=>x.type==='other' && x.category).forEach(x=>{
+    const key = x.category.trim();
+    if(!key || seen.has(key)) return;
+    seen.add(key); list.push(key);
+  });
+  return list.slice(0, 12);
+}
 
 auth.onAuthStateChanged(async (user)=>{
   currentUser = user;
@@ -315,11 +375,11 @@ auth.onAuthStateChanged(async (user)=>{
     listenInvites();
     listenSentInvites();
     listenPets();
-    listenFeeds();
+    listenLogs();
   } else {
-    [unsubProfile,unsubUsers,unsubPets,unsubFeeds,unsubFriends,unsubInvites,unsubSentInvites].forEach(u=>u&&u());
-    unsubProfile=unsubUsers=unsubPets=unsubFeeds=unsubFriends=unsubInvites=unsubSentInvites=null;
-    allUsers=[]; allPets=[]; allFeeds=[]; myFriends=new Set(); pendingInvitesToMe=[]; sentInvites=[];
+    [unsubProfile,unsubUsers,unsubPets,unsubLogs,unsubFriends,unsubInvites,unsubSentInvites].forEach(u=>u&&u());
+    unsubProfile=unsubUsers=unsubPets=unsubLogs=unsubFriends=unsubInvites=unsubSentInvites=null;
+    allUsers=[]; allPets=[]; allLogs=[]; myFriends=new Set(); pendingInvitesToMe=[]; sentInvites=[];
     view='list'; activeTab='pets';
     renderAuth();
   }
@@ -383,10 +443,10 @@ function listenPets(){
     renderCurrentView();
   }, err=>{ console.error(err); toast('讀取寵物資料時發生問題'); });
 }
-function listenFeeds(){
-  if(unsubFeeds) unsubFeeds();
-  unsubFeeds = db.collectionGroup('feeds').orderBy('createdAt','desc').limit(500).onSnapshot(snap=>{
-    allFeeds = snap.docs.map(d=>({id:d.id, petId:d.ref.parent.parent.id, ...d.data()}));
+function listenLogs(){
+  if(unsubLogs) unsubLogs();
+  unsubLogs = db.collectionGroup('logs').orderBy('createdAt','desc').limit(800).onSnapshot(snap=>{
+    allLogs = snap.docs.map(d=>({id:d.id, petId:d.ref.parent.parent.id, ...d.data()}));
     renderCurrentView();
   }, err=>{ console.error(err); });
 }
@@ -398,7 +458,7 @@ function renderCurrentView(){
     else if(view==='addPet' || view==='editPet') { /* keep form as-is, don't re-render mid-typing */ }
     else renderPetsList();
   } else {
-    renderFeedTimeline();
+    renderLogTimeline();
   }
 }
 
@@ -522,7 +582,7 @@ function renderApp(){
     <div id="page" class="page"></div>
     <div class="tabbar"><div class="tabbar-inner">
       <button class="tab ${activeTab==='pets'?'active':''}" data-tab="pets"><span class="ic">🐾</span>我的寵物</button>
-      <button class="tab ${activeTab==='feed'?'active':''}" data-tab="feed"><span class="ic">🍖</span>餵食動態</button>
+      <button class="tab ${activeTab==='feed'?'active':''}" data-tab="feed"><span class="ic">📋</span>紀錄動態</button>
     </div></div>
   `;
   document.getElementById('logoutBtn').onclick = ()=>auth.signOut();
@@ -535,7 +595,7 @@ function renderApp(){
     if(view==='detail') renderPetDetail();
     else renderPetsList();
   } else {
-    renderFeedTimeline();
+    renderLogTimeline();
   }
 }
 
@@ -752,7 +812,7 @@ function renderPetDetail(){
   const p = allPets.find(x=>x.id===selectedPetId);
   if(!p || !hasAccess(p.ownerId)){ view='list'; renderPetsList(); return; }
   const speciesLabel = p.species==='其他' ? (p.speciesOther||'其他') : p.species;
-  const feeds = visibleFeedsForPet(p.id);
+  const logs = visibleLogsForPet(p.id);
 
   page.innerHTML = `
     <div class="back-row"><button class="back-btn" id="backToList">← 回寵物列表</button></div>
@@ -772,54 +832,193 @@ function renderPetDetail(){
       </div>
     </div>
 
-    <div class="section-title">餵食紀錄</div>
-    <div class="form-card" style="margin-bottom:16px;">
-      <div class="grid2">
-        <div class="field compact"><label>日期</label><input type="date" id="fd_date" value="${todayStr()}"></div>
-        <div class="field compact"><label>時間</label><input type="time" id="fd_time" value="${nowTimeStr()}"></div>
-      </div>
-      <div class="field compact"><label>吃了什麼</label><textarea id="fd_food" placeholder="例如：飼料 50g、雞胸肉罐頭"></textarea></div>
-      <div class="grid2">
-        <div class="field compact"><label>份量（選填）</label><input type="text" id="fd_amount" placeholder="例如 50g 或 1/2 罐"></div>
-        <div class="field compact"><label>備註（選填）</label><input type="text" id="fd_note" placeholder="任何想記下的小事"></div>
-      </div>
-      <div class="submit-row"><button class="btn btn-primary" id="submitFeed">儲存這筆餵食紀錄</button></div>
+    <div class="section-title">照護紀錄</div>
+    <div class="seg" id="logTypeSeg">
+      ${LOG_TYPES.map(t=>`<button class="${addLogType===t?'active type-'+t:''}" data-type="${t}"><span class="ic">${LOG_TYPE_ICON[t]}</span>${LOG_TYPE_LABEL[t]}</button>`).join('')}
     </div>
+    <div id="logFormArea" style="margin-bottom:16px;"></div>
 
-    ${feeds.length===0 ? `<div class="empty-state"><span class="ic">🍖</span>還沒有餵食紀錄</div>` : renderFeedGroups(feeds, false)}
+    ${logs.length===0 ? `<div class="empty-state"><span class="ic">📋</span>還沒有任何照護紀錄</div>` : renderLogGroups(logs, false)}
   `;
   document.getElementById('backToList').onclick = ()=>{ view='list'; renderPetsList(); };
   document.getElementById('editPetBtn').onclick = ()=>{ view='editPet'; editingPet=p; renderAddPetForm(); };
   document.getElementById('delPetBtn').onclick = ()=>deletePet(p);
-  document.getElementById('submitFeed').onclick = ()=>submitFeed(p.id);
+  page.querySelectorAll('#logTypeSeg button').forEach(b=>{
+    b.onclick = ()=>{ addLogType = b.dataset.type; renderPetDetail(); };
+  });
+  renderLogForm(p.id);
   bindFeedDeleteButtons(page);
 }
 
-function renderFeedGroups(feeds, showPetName){
+function renderLogForm(petId){
+  const area = document.getElementById('logFormArea');
+  if(!area) return;
+  mealRatingValue = 0;
+  const t = addLogType;
+  if(t==='meal'){
+    area.innerHTML = `
+      <div class="form-card">
+        <div class="grid2">
+          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${todayStr()}"></div>
+          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${nowTimeStr()}"></div>
+        </div>
+        <div class="field compact"><label>吃了什麼</label>
+          <textarea id="lg_food" placeholder="例如：飼料 50g、雞胸肉罐頭"></textarea>
+          <button type="button" class="history-toggle" id="mealHistoryToggle" style="background:var(--moss-soft);color:var(--moss-deep);border:none;border-radius:20px;font-size:13px;font-weight:600;padding:8px 14px;margin-top:8px;cursor:pointer;">📋 從歷史選擇</button>
+          <div class="hidden" id="mealHistoryPanel" style="margin-top:8px;max-height:200px;overflow-y:auto;border:1.5px solid var(--line);border-radius:12px;background:#FBFAF3;padding:4px;"></div>
+        </div>
+        <div class="grid2">
+          <div class="field compact"><label>份量（選填）</label><input type="text" id="lg_amount" placeholder="例如 50g 或 1/2 罐"></div>
+          <div class="field compact"><label>剩下多少（選填）</label>
+            <select id="lg_leftover">${LEFTOVER_OPTIONS.map(o=>`<option value="${esc(o)}">${o?esc(o):'—'}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="field compact"><label>喜歡程度（選填）</label>
+          <div class="star-picker" id="mealStars" data-value="0">
+            ${[1,2,3,4,5].map(n=>`<button type="button" class="star-btn" data-val="${n}">☆</button>`).join('')}
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 80"></div>
+          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事"></div>
+        </div>
+        <div class="submit-row"><button class="btn btn-primary" id="submitLog">儲存這筆飲食紀錄</button></div>
+      </div>
+    `;
+    const stars = document.getElementById('mealStars');
+    stars.querySelectorAll('.star-btn').forEach(b=>{
+      b.onclick = ()=>{
+        mealRatingValue = Number(b.dataset.val);
+        stars.dataset.value = mealRatingValue;
+        stars.querySelectorAll('.star-btn').forEach(s=>{ s.textContent = Number(s.dataset.val)<=mealRatingValue ? '★' : '☆'; });
+      };
+    });
+    document.getElementById('mealHistoryToggle').onclick = ()=>{
+      const panel = document.getElementById('mealHistoryPanel');
+      const opening = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden');
+      if(opening){
+        const list = getMyMealHistory(petId);
+        panel.innerHTML = list.length===0
+          ? `<div class="history-empty">還沒有可以選的紀錄,先自己填一次看看</div>`
+          : list.map(x=>`<button type="button" class="history-item" data-key="${esc(x.food)}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);padding:9px 8px;cursor:pointer;font-size:13px;color:var(--ink);"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(x.food)}</span><span style="flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);">${esc(x.amount||'')}</span></button>`).join('');
+        panel.querySelectorAll('.history-item').forEach(item=>{
+          item.onclick = ()=>{
+            const match = getMyMealHistory(petId).find(x=>x.food===item.dataset.key);
+            if(!match) return;
+            document.getElementById('lg_food').value = match.food || '';
+            document.getElementById('lg_amount').value = match.amount || '';
+            panel.classList.add('hidden');
+            toast('已帶入歷史紀錄');
+          };
+        });
+      }
+    };
+    document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'meal');
+  } else if(t==='vet'){
+    area.innerHTML = `
+      <div class="form-card">
+        <div class="grid2">
+          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${todayStr()}"></div>
+          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${nowTimeStr()}"></div>
+        </div>
+        <div class="field compact"><label>看診內容</label><textarea id="lg_content" placeholder="例如：例行健檢、皮膚紅腫就診"></textarea></div>
+        <div class="grid2">
+          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 800"></div>
+          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="醫囑、回診時間等"></div>
+        </div>
+        <div class="submit-row"><button class="btn btn-primary" id="submitLog">儲存這筆看診紀錄</button></div>
+      </div>
+    `;
+    document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'vet');
+  } else if(t==='med'){
+    area.innerHTML = `
+      <div class="form-card">
+        <div class="grid2">
+          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${todayStr()}"></div>
+          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${nowTimeStr()}"></div>
+        </div>
+        <div class="grid2">
+          <div class="field compact"><label>藥品名稱</label><input type="text" id="lg_medname" placeholder="例如：心絲蟲預防藥"></div>
+          <div class="field compact"><label>劑量（選填）</label><input type="text" id="lg_dosage" placeholder="例如 1 顆、0.5ml"></div>
+        </div>
+        <div class="grid2">
+          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 300"></div>
+          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事"></div>
+        </div>
+        <div class="submit-row"><button class="btn btn-primary" id="submitLog">儲存這筆用藥紀錄</button></div>
+      </div>
+    `;
+    document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'med');
+  } else {
+    area.innerHTML = `
+      <div class="form-card">
+        <div class="grid2">
+          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${todayStr()}"></div>
+          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${nowTimeStr()}"></div>
+        </div>
+        <div class="field compact"><label>類別</label>
+          <input type="text" id="lg_category" placeholder="例如：用品、美容">
+          <div class="chip-row">${getOtherCategoryHistory().map(c=>`<button type="button" class="cat-chip" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+        </div>
+        <div class="field compact"><label>內容</label><input type="text" id="lg_content" placeholder="例如：買飼料、洗澡剪毛"></div>
+        <div class="grid2">
+          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 500"></div>
+          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事"></div>
+        </div>
+        <div class="submit-row"><button class="btn btn-primary" id="submitLog">儲存這筆支出</button></div>
+      </div>
+    `;
+    area.querySelectorAll('.cat-chip').forEach(b=>{
+      b.onclick = ()=>{ document.getElementById('lg_category').value = b.dataset.cat; };
+    });
+    document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'other');
+  }
+}
+
+function renderLogGroups(logs, showPetName){
   const byDate = {};
-  feeds.forEach(f=>{ (byDate[f.date]=byDate[f.date]||[]).push(f); });
+  logs.forEach(f=>{ (byDate[f.date]=byDate[f.date]||[]).push(f); });
   const dates = Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
   return dates.map(date=>`
     <div class="day-group">
       <div class="day-label">${formatDate(date)}</div>
-      ${byDate[date].sort((a,b)=>b.time.localeCompare(a.time)).map(f=>feedCardHtml(f, showPetName)).join('')}
+      ${byDate[date].sort((a,b)=>b.time.localeCompare(a.time)).map(f=>logCardHtml(f, showPetName)).join('')}
     </div>
   `).join('');
 }
-function feedCardHtml(f, showPetName){
+function logCardHtml(f, showPetName){
   const pet = allPets.find(p=>p.id===f.petId);
   const mine = f.uid === (currentUser && currentUser.uid);
+  const t = f.type || 'meal';
+  let titleHtml, subHtml = '';
+  if(t==='meal'){
+    titleHtml = `<div class="feed-food">${esc(f.food||'')}</div>`;
+    const bits = [];
+    if(f.amount) bits.push(`份量：${esc(f.amount)}`);
+    if(f.leftover) bits.push(`剩：${esc(f.leftover)}`);
+    if(bits.length) subHtml += `<div class="feed-amount">${bits.join(' ・ ')}</div>`;
+    if(f.rating) subHtml += `<div class="log-stars">${'★'.repeat(f.rating)}${'☆'.repeat(5-f.rating)}</div>`;
+  } else if(t==='vet'){
+    titleHtml = `<div class="feed-food">${esc(f.content||'')}</div>`;
+  } else if(t==='med'){
+    titleHtml = `<div class="feed-food">${esc(f.medName||'')}${f.dosage? ' · '+esc(f.dosage):''}</div>`;
+  } else {
+    titleHtml = `<div class="feed-food">${esc(f.category||'其他')}${f.content? '：'+esc(f.content):''}</div>`;
+  }
   return `
     <div class="feed-card">
-      <div class="feed-icon">${pet ? (SPECIES_ICON[pet.species]||'🐾') : '🐾'}</div>
+      <div class="feed-icon type-${t}">${LOG_TYPE_ICON[t]}</div>
       <div class="feed-body">
         <div class="feed-top">
           <span class="badge" style="background:${nameColor(f.uid)}22;color:${nameColor(f.uid)}">${esc(f.name)}</span>
+          <span class="type-tag type-${t}">${LOG_TYPE_LABEL[t]}</span>
           <span class="time-tag">${esc(f.time||'')}</span>
           ${showPetName && pet ? `<span class="pet-tag">${esc(pet.name)}</span>` : ''}
+          ${f.cost ? `<span class="log-cost">💰 NT$${f.cost}</span>` : ''}
         </div>
-        <div class="feed-food">${esc(f.food||'')}</div>
-        ${f.amount ? `<div class="feed-amount">份量：${esc(f.amount)}</div>` : ''}
+        ${titleHtml}
+        ${subHtml}
         ${f.note ? `<div class="feed-note">${esc(f.note)}</div>` : ''}
         ${mine || (pet && hasAccess(pet.ownerId)) ? `<div class="feed-actions"><button class="del-btn" data-fid="${f.id}" data-pid="${f.petId}">刪除</button></div>` : ''}
       </div>
@@ -828,7 +1027,7 @@ function feedCardHtml(f, showPetName){
 }
 function bindFeedDeleteButtons(container){
   container.querySelectorAll('.del-btn[data-fid]').forEach(b=>{
-    b.onclick = ()=>deleteFeed(b.dataset.pid, b.dataset.fid);
+    b.onclick = ()=>deleteLog(b.dataset.pid, b.dataset.fid);
   });
 }
 function formatDate(d){
@@ -837,33 +1036,55 @@ function formatDate(d){
   return `${dt.getMonth()+1}月${dt.getDate()}日 · ${days[dt.getDay()]}`;
 }
 
-async function submitFeed(petId){
-  const btn = document.getElementById('submitFeed');
-  const date = document.getElementById('fd_date').value;
-  const time = document.getElementById('fd_time').value;
-  const food = document.getElementById('fd_food').value.trim();
+async function submitLog(petId, type){
+  const btn = document.getElementById('submitLog');
+  const date = document.getElementById('lg_date').value;
+  const time = document.getElementById('lg_time').value;
   if(!date || !time){ toast('請選擇日期和時間'); return; }
-  if(!food){ toast('請填寫吃了什麼'); return; }
+  const costVal = document.getElementById('lg_cost').value;
+  const data = {
+    type, uid: currentUser.uid, name: currentProfile.name,
+    date, time,
+    cost: costVal===''? null : Number(costVal),
+    note: document.getElementById('lg_note').value.trim(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if(type==='meal'){
+    const food = document.getElementById('lg_food').value.trim();
+    if(!food){ toast('請填寫吃了什麼'); return; }
+    data.food = food;
+    data.amount = document.getElementById('lg_amount').value.trim();
+    data.leftover = document.getElementById('lg_leftover').value;
+    data.rating = mealRatingValue || 0;
+  } else if(type==='vet'){
+    const content = document.getElementById('lg_content').value.trim();
+    if(!content){ toast('請填寫看診內容'); return; }
+    data.content = content;
+  } else if(type==='med'){
+    const medName = document.getElementById('lg_medname').value.trim();
+    if(!medName){ toast('請填寫藥品名稱'); return; }
+    data.medName = medName;
+    data.dosage = document.getElementById('lg_dosage').value.trim();
+  } else {
+    const category = document.getElementById('lg_category').value.trim();
+    if(!category){ toast('請填寫類別'); return; }
+    data.category = category;
+    data.content = document.getElementById('lg_content').value.trim();
+  }
   btn.disabled = true; btn.textContent = '儲存中…';
   try{
-    await db.collection('pets').doc(petId).collection('feeds').add({
-      uid: currentUser.uid, name: currentProfile.name,
-      date, time, food,
-      amount: document.getElementById('fd_amount').value.trim(),
-      note: document.getElementById('fd_note').value.trim(),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    toast('已儲存這筆餵食紀錄 🍖');
+    await db.collection('pets').doc(petId).collection('logs').add(data);
+    toast('已儲存這筆紀錄 ' + LOG_TYPE_ICON[type]);
     renderPetDetail();
   }catch(e){
     console.error(e); toast('儲存失敗：'+e.message);
-    btn.disabled = false; btn.textContent = '儲存這筆餵食紀錄';
+    btn.disabled = false; btn.textContent = '儲存';
   }
 }
-async function deleteFeed(petId, feedId){
-  if(!confirm('確定要刪除這筆餵食紀錄嗎？')) return;
+async function deleteLog(petId, logId){
+  if(!confirm('確定要刪除這筆紀錄嗎？')) return;
   try{
-    await db.collection('pets').doc(petId).collection('feeds').doc(feedId).delete();
+    await db.collection('pets').doc(petId).collection('logs').doc(logId).delete();
     toast('已刪除');
   }catch(e){ toast('刪除失敗：'+e.message); }
 }
@@ -993,12 +1214,12 @@ async function submitPet(){
 }
 
 async function deletePet(p){
-  if(!confirm(`確定要刪除「${p.name}」嗎？相關的餵食紀錄也會一併刪除,無法復原。`)) return;
+  if(!confirm(`確定要刪除「${p.name}」嗎？相關的照護紀錄也會一併刪除,無法復原。`)) return;
   try{
-    const feedsSnap = await db.collection('pets').doc(p.id).collection('feeds').get();
-    if(!feedsSnap.empty){
+    const logsSnap = await db.collection('pets').doc(p.id).collection('logs').get();
+    if(!logsSnap.empty){
       const batch = db.batch();
-      feedsSnap.forEach(d=>batch.delete(d.ref));
+      logsSnap.forEach(d=>batch.delete(d.ref));
       await batch.commit();
     }
     await db.collection('pets').doc(p.id).delete();
@@ -1007,25 +1228,31 @@ async function deletePet(p){
   }catch(e){ console.error(e); toast('刪除失敗：'+e.message); }
 }
 
-/* ================= FEED TIMELINE ================= */
-function renderFeedTimeline(){
+/* ================= LOG TIMELINE ================= */
+let timelineTypeFilter = '';
+function renderLogTimeline(){
   const page = document.getElementById('page');
   if(!page) return;
   const pets = visiblePets();
   const petIds = new Set(pets.map(p=>p.id));
-  const feeds = allFeeds.filter(f=>petIds.has(f.petId));
+  let logs = allLogs.filter(f=>petIds.has(f.petId));
+  if(timelineTypeFilter) logs = logs.filter(f=>(f.type||'meal')===timelineTypeFilter);
 
   if(pets.length===0){
-    page.innerHTML = `<div class="empty-state"><span class="ic">🍖</span>還沒有寵物<br>先到「我的寵物」新增一隻吧</div>`;
+    page.innerHTML = `<div class="empty-state"><span class="ic">📋</span>還沒有寵物<br>先到「我的寵物」新增一隻吧</div>`;
     return;
   }
   page.innerHTML = `
-    <div class="section-title">餵食動態</div>
+    <div class="section-title">紀錄動態</div>
     <div class="feed-quick">
       <select id="quickPetSel">${pets.map(p=>`<option value="${p.id}" ${feedQuickPetId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
       <button class="add-fab" id="quickAddBtn" style="white-space:nowrap;">＋ 新增紀錄</button>
     </div>
-    ${feeds.length===0 ? `<div class="empty-state"><span class="ic">🍖</span>還沒有任何餵食紀錄</div>` : renderFeedGroups(feeds, true)}
+    <div class="type-filter">
+      <button class="chip ${!timelineTypeFilter?'active':''}" data-type="">全部</button>
+      ${LOG_TYPES.map(t=>`<button class="chip ${timelineTypeFilter===t?'active':''}" data-type="${t}">${LOG_TYPE_ICON[t]} ${LOG_TYPE_LABEL[t]}</button>`).join('')}
+    </div>
+    ${logs.length===0 ? `<div class="empty-state"><span class="ic">📋</span>還沒有任何紀錄</div>` : renderLogGroups(logs, true)}
   `;
   document.getElementById('quickAddBtn').onclick = ()=>{
     const sel = document.getElementById('quickPetSel');
@@ -1033,6 +1260,9 @@ function renderFeedTimeline(){
     activeTab = 'pets'; view = 'detail';
     renderApp();
   };
+  page.querySelectorAll('.type-filter .chip').forEach(b=>{
+    b.onclick = ()=>{ timelineTypeFilter = b.dataset.type; renderLogTimeline(); };
+  });
   bindFeedDeleteButtons(page);
 }
 
