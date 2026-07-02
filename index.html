@@ -240,6 +240,25 @@
   .log-stars{color:var(--honey);font-size:13px;letter-spacing:1px;}
   .log-cost{background:var(--paper);padding:2px 8px;border-radius:8px;font-size:11.5px;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-weight:600;}
 
+  .overview-total{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);text-align:center;margin-bottom:16px;}
+  .overview-total .amt{font-family:'IBM Plex Mono',monospace;font-size:34px;font-weight:600;color:var(--moss-deep);}
+  .overview-total .lbl{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+  .range-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:14px;}
+  .range-nav button{background:none;border:none;font-size:19px;color:var(--ink-soft);cursor:pointer;padding:4px 12px;}
+  .range-nav button:hover{color:var(--moss-deep);}
+  .range-nav .lbl{font-size:14.5px;font-weight:600;color:var(--ink);min-width:110px;text-align:center;}
+  .type-bar-row{margin-bottom:12px;}
+  .type-bar-row .row-head{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;}
+  .type-bar-row .row-head .name{color:var(--ink-soft);font-weight:500;}
+  .type-bar-row .row-head .val{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  .type-bar-track{background:var(--paper);border-radius:8px;height:10px;overflow:hidden;}
+  .type-bar-fill{height:100%;border-radius:8px;transition:width .4s ease;}
+  .pet-breakdown-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .pet-breakdown-row:last-child{border-bottom:none;}
+  .pet-breakdown-row .pname{display:flex;align-items:center;gap:8px;}
+  .pet-breakdown-row .pname img{width:24px;height:24px;border-radius:50%;object-fit:cover;}
+  .pet-breakdown-row .pval{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--ink);}
+
   .loading{display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--ink-soft);font-size:14px;}
   .hidden{display:none !important;}
 </style>
@@ -317,7 +336,10 @@ let myFriends = new Set();
 let pendingInvitesToMe = [];
 let sentInvites = [];
 
-let unsubProfile=null, unsubUsers=null, unsubPets=null, unsubLogs=null, unsubFriends=null, unsubInvites=null, unsubSentInvites=null;
+let unsubProfile=null, unsubUsers=null, unsubOwnPets=null, unsubFriendPets=null, unsubFriends=null, unsubInvites=null, unsubSentInvites=null;
+let ownPetsMap = {}, friendPetsMap = {};
+let logListenerUnsubs = {}; // petId -> unsub fn
+let logsByPet = {}; // petId -> array of logs
 
 let authMode = 'login';
 let activeTab = 'pets';
@@ -375,10 +397,11 @@ auth.onAuthStateChanged(async (user)=>{
     listenInvites();
     listenSentInvites();
     listenPets();
-    listenLogs();
   } else {
-    [unsubProfile,unsubUsers,unsubPets,unsubLogs,unsubFriends,unsubInvites,unsubSentInvites].forEach(u=>u&&u());
-    unsubProfile=unsubUsers=unsubPets=unsubLogs=unsubFriends=unsubInvites=unsubSentInvites=null;
+    [unsubProfile,unsubUsers,unsubOwnPets,unsubFriendPets,unsubFriends,unsubInvites,unsubSentInvites].forEach(u=>u&&u());
+    Object.values(logListenerUnsubs).forEach(u=>u&&u());
+    unsubProfile=unsubUsers=unsubOwnPets=unsubFriendPets=unsubFriends=unsubInvites=unsubSentInvites=null;
+    logListenerUnsubs = {}; logsByPet = {}; ownPetsMap = {}; friendPetsMap = {};
     allUsers=[]; allPets=[]; allLogs=[]; myFriends=new Set(); pendingInvitesToMe=[]; sentInvites=[];
     view='list'; activeTab='pets';
     renderAuth();
@@ -412,6 +435,7 @@ function listenFriends(){
   if(unsubFriends) unsubFriends();
   unsubFriends = db.collection('users').doc(currentUser.uid).collection('friends').onSnapshot(snap=>{
     myFriends = new Set(snap.docs.map(d=>d.id));
+    refreshFriendPetsListener();
     renderCurrentView();
   }, err=>console.error(err));
 }
@@ -436,20 +460,71 @@ function listenSentInvites(){
       if(overlay) renderFriendsModalBody();
     }, err=>console.error(err));
 }
+
+/* Pets are queried in two scoped requests (own + friends') instead of the
+   whole collection, because Firestore rejects an entire list query if any
+   document it could return fails the security rules. */
 function listenPets(){
-  if(unsubPets) unsubPets();
-  unsubPets = db.collection('pets').orderBy('createdAt','desc').onSnapshot(snap=>{
-    allPets = snap.docs.map(d=>({id:d.id, ...d.data()}));
-    renderCurrentView();
+  if(unsubOwnPets) unsubOwnPets();
+  unsubOwnPets = db.collection('pets').where('ownerId','==',currentUser.uid).onSnapshot(snap=>{
+    ownPetsMap = {};
+    snap.forEach(d=>{ ownPetsMap[d.id] = {id:d.id, ...d.data()}; });
+    rebuildAllPets();
   }, err=>{ console.error(err); toast('讀取寵物資料時發生問題'); });
+  refreshFriendPetsListener();
 }
-function listenLogs(){
-  if(unsubLogs) unsubLogs();
-  unsubLogs = db.collectionGroup('logs').orderBy('createdAt','desc').limit(800).onSnapshot(snap=>{
-    allLogs = snap.docs.map(d=>({id:d.id, petId:d.ref.parent.parent.id, ...d.data()}));
-    renderCurrentView();
-  }, err=>{ console.error(err); });
+function refreshFriendPetsListener(){
+  if(!currentUser) return;
+  if(unsubFriendPets) unsubFriendPets();
+  const friendIds = Array.from(myFriends).slice(0,30);
+  if(friendIds.length===0){
+    friendPetsMap = {};
+    rebuildAllPets();
+    return;
+  }
+  unsubFriendPets = db.collection('pets').where('ownerId','in',friendIds).onSnapshot(snap=>{
+    friendPetsMap = {};
+    snap.forEach(d=>{ friendPetsMap[d.id] = {id:d.id, ...d.data()}; });
+    rebuildAllPets();
+  }, err=>{ console.error(err); toast('讀取好友寵物資料時發生問題'); });
 }
+function tsToMillis(ts){
+  if(!ts) return 0;
+  if(ts.toMillis) return ts.toMillis();
+  if(ts.seconds) return ts.seconds*1000;
+  return 0;
+}
+function rebuildAllPets(){
+  const merged = {...ownPetsMap, ...friendPetsMap};
+  allPets = Object.values(merged).sort((a,b)=> tsToMillis(b.createdAt)-tsToMillis(a.createdAt));
+  refreshLogListeners();
+}
+
+/* Same reasoning as pets: one listener per accessible pet's logs
+   subcollection, instead of a single collectionGroup query across everyone. */
+function refreshLogListeners(){
+  const currentIds = new Set(allPets.map(p=>p.id));
+  Object.keys(logListenerUnsubs).forEach(pid=>{
+    if(!currentIds.has(pid)){
+      logListenerUnsubs[pid]();
+      delete logListenerUnsubs[pid];
+      delete logsByPet[pid];
+    }
+  });
+  currentIds.forEach(pid=>{
+    if(logListenerUnsubs[pid]) return;
+    logListenerUnsubs[pid] = db.collection('pets').doc(pid).collection('logs').onSnapshot(snap=>{
+      logsByPet[pid] = snap.docs.map(d=>({id:d.id, petId:pid, ...d.data()}));
+      rebuildAllLogs();
+    }, err=>{ console.error(err); });
+  });
+  rebuildAllLogs();
+}
+function rebuildAllLogs(){
+  allLogs = Object.values(logsByPet).flat();
+  renderCurrentView();
+}
+
 function renderCurrentView(){
   if(!currentUser || !currentProfile) return;
   if(!document.getElementById('page')){ renderApp(); return; }
@@ -457,8 +532,10 @@ function renderCurrentView(){
     if(view==='detail') renderPetDetail();
     else if(view==='addPet' || view==='editPet') { /* keep form as-is, don't re-render mid-typing */ }
     else renderPetsList();
-  } else {
+  } else if(activeTab==='feed'){
     renderLogTimeline();
+  } else {
+    renderOverviewPage();
   }
 }
 
@@ -583,6 +660,7 @@ function renderApp(){
     <div class="tabbar"><div class="tabbar-inner">
       <button class="tab ${activeTab==='pets'?'active':''}" data-tab="pets"><span class="ic">🐾</span>我的寵物</button>
       <button class="tab ${activeTab==='feed'?'active':''}" data-tab="feed"><span class="ic">📋</span>紀錄動態</button>
+      <button class="tab ${activeTab==='overview'?'active':''}" data-tab="overview"><span class="ic">📊</span>總覽</button>
     </div></div>
   `;
   document.getElementById('logoutBtn').onclick = ()=>auth.signOut();
@@ -594,8 +672,10 @@ function renderApp(){
   if(activeTab==='pets'){
     if(view==='detail') renderPetDetail();
     else renderPetsList();
-  } else {
+  } else if(activeTab==='feed'){
     renderLogTimeline();
+  } else {
+    renderOverviewPage();
   }
 }
 
@@ -1264,6 +1344,118 @@ function renderLogTimeline(){
     b.onclick = ()=>{ timelineTypeFilter = b.dataset.type; renderLogTimeline(); };
   });
   bindFeedDeleteButtons(page);
+}
+
+/* ================= OVERVIEW ================= */
+let overviewRange = 'month'; // 'month' | 'year'
+let overviewPetFilter = '';
+let overviewDate = new Date();
+
+function isInOverviewRange(dateStr){
+  if(!dateStr) return false;
+  const y = dateStr.slice(0,4), m = dateStr.slice(5,7);
+  const oy = String(overviewDate.getFullYear());
+  const om = String(overviewDate.getMonth()+1).padStart(2,'0');
+  if(overviewRange==='year') return y===oy;
+  return y===oy && m===om;
+}
+function overviewRangeLabel(){
+  return overviewRange==='year'
+    ? `${overviewDate.getFullYear()}年`
+    : `${overviewDate.getFullYear()}年${overviewDate.getMonth()+1}月`;
+}
+function shiftOverviewDate(dir){
+  const d = new Date(overviewDate);
+  if(overviewRange==='year') d.setFullYear(d.getFullYear()+dir);
+  else d.setMonth(d.getMonth()+dir);
+  overviewDate = d;
+}
+
+function renderOverviewPage(){
+  const page = document.getElementById('page');
+  if(!page) return;
+  const pets = visiblePets();
+  if(pets.length===0){
+    page.innerHTML = `<div class="empty-state"><span class="ic">📊</span>還沒有寵物<br>先到「我的寵物」新增一隻吧</div>`;
+    return;
+  }
+  if(overviewPetFilter && !pets.find(p=>p.id===overviewPetFilter)) overviewPetFilter = '';
+  const scopedPetIds = overviewPetFilter ? [overviewPetFilter] : pets.map(p=>p.id);
+  const scopedPetIdSet = new Set(scopedPetIds);
+  const logs = allLogs.filter(l=>scopedPetIdSet.has(l.petId) && isInOverviewRange(l.date));
+
+  const totalCost = logs.reduce((sum,l)=>sum+(l.cost||0),0);
+  const byType = {};
+  LOG_TYPES.forEach(t=>byType[t]={cost:0,count:0});
+  logs.forEach(l=>{
+    const t = l.type||'meal';
+    if(!byType[t]) byType[t]={cost:0,count:0};
+    byType[t].cost += (l.cost||0);
+    byType[t].count += 1;
+  });
+  const maxTypeCost = Math.max(1, ...LOG_TYPES.map(t=>byType[t].cost));
+
+  const byPet = {};
+  pets.forEach(p=>byPet[p.id]={cost:0,count:0});
+  logs.forEach(l=>{
+    if(!byPet[l.petId]) byPet[l.petId]={cost:0,count:0};
+    byPet[l.petId].cost += (l.cost||0);
+    byPet[l.petId].count += 1;
+  });
+
+  page.innerHTML = `
+    <div class="section-title">總覽統計</div>
+    <div class="type-filter">
+      <button class="chip ${!overviewPetFilter?'active':''}" data-pet="">全部寵物</button>
+      ${pets.map(p=>`<button class="chip ${overviewPetFilter===p.id?'active':''}" data-pet="${p.id}">${esc(p.name)}</button>`).join('')}
+    </div>
+    <div class="seg">
+      <button class="${overviewRange==='month'?'active':''}" data-range="month">按月統計</button>
+      <button class="${overviewRange==='year'?'active':''}" data-range="year">按年統計</button>
+    </div>
+    <div class="range-nav">
+      <button id="rangePrev">‹</button>
+      <span class="lbl">${overviewRangeLabel()}</span>
+      <button id="rangeNext">›</button>
+    </div>
+    <div class="overview-total">
+      <div class="amt">NT$ ${totalCost.toLocaleString()}</div>
+      <div class="lbl">${overviewPetFilter? esc(pets.find(p=>p.id===overviewPetFilter).name) : '全部寵物'}・${overviewRangeLabel()}總花費・共 ${logs.length} 筆紀錄</div>
+    </div>
+
+    <div class="section-title">依類別分布</div>
+    <div class="form-card" style="margin-bottom:16px;">
+      ${LOG_TYPES.map(t=>`
+        <div class="type-bar-row">
+          <div class="row-head"><span class="name">${LOG_TYPE_ICON[t]} ${LOG_TYPE_LABEL[t]}</span><span class="val">NT$ ${byType[t].cost.toLocaleString()}（${byType[t].count} 筆）</span></div>
+          <div class="type-bar-track"><div class="type-bar-fill" style="width:${Math.round(byType[t].cost/maxTypeCost*100)}%;background:${typeColor(t)}"></div></div>
+        </div>
+      `).join('')}
+    </div>
+
+    ${!overviewPetFilter && pets.length>1 ? `
+      <div class="section-title">依寵物分布</div>
+      <div class="form-card">
+        ${pets.map(p=>`
+          <div class="pet-breakdown-row">
+            <span class="pname">${p.photo?`<img src="${p.photo}">`:SPECIES_ICON[p.species]||'🐾'} ${esc(p.name)}</span>
+            <span class="pval">NT$ ${byPet[p.id].cost.toLocaleString()}（${byPet[p.id].count} 筆）</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+  `;
+  page.querySelectorAll('.type-filter .chip').forEach(b=>{
+    b.onclick = ()=>{ overviewPetFilter = b.dataset.pet; renderOverviewPage(); };
+  });
+  page.querySelectorAll('.seg button').forEach(b=>{
+    b.onclick = ()=>{ overviewRange = b.dataset.range; renderOverviewPage(); };
+  });
+  document.getElementById('rangePrev').onclick = ()=>{ shiftOverviewDate(-1); renderOverviewPage(); };
+  document.getElementById('rangeNext').onclick = ()=>{ shiftOverviewDate(1); renderOverviewPage(); };
+}
+function typeColor(t){
+  return {meal:'var(--clay)', vet:'#7D5BA6', med:'var(--honey)', other:'var(--moss)'}[t] || 'var(--moss)';
 }
 
 root.innerHTML = `<div class="loading">載入中…</div>`;
