@@ -1433,7 +1433,7 @@ function renderAddPetForm(){
         </div>
         <input type="file" id="p_photo" accept="image/*" style="display:none">
       </div>
-      <div class="field compact"><label>名字</label><input type="text" id="p_name" placeholder="例如：豆豆" value="${p? esc(p.name):''}"></div>
+      <div class="field compact"><label>名字</label><input type="text" id="p_name" placeholder="例如：嘟嘟" value="${p? esc(p.name):''}"></div>
       <div class="field compact"><label>代表色</label>
         <div class="color-picker" id="petColorPicker">
           ${PALETTE.map(c=>`<button type="button" class="color-swatch ${c===petColorValue?'selected':''}" data-color="${c}" style="background:${c}"></button>`).join('')}
