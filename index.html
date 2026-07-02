@@ -226,8 +226,11 @@
   .star-btn:active{transform:scale(0.9);}
 
   .chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
-  .cat-chip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;}
+  .cat-chip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);padding:5px 4px 5px 12px;border-radius:20px;font-size:12px;display:inline-flex;align-items:center;gap:4px;}
+  .cat-chip .cat-label{cursor:pointer;}
   .cat-chip:hover{border-color:var(--moss);color:var(--moss-deep);}
+  .cat-chip .cat-del{background:none;border:none;color:#B7AF9E;font-size:12px;cursor:pointer;padding:2px 6px;line-height:1;border-radius:50%;}
+  .cat-chip .cat-del:hover{color:var(--err);background:#F8E7E1;}
 
   .type-filter{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
   .type-filter .chip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);padding:7px 14px;border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;}
@@ -258,6 +261,10 @@
   .pet-breakdown-row .pname{display:flex;align-items:center;gap:8px;}
   .pet-breakdown-row .pname img{width:24px;height:24px;border-radius:50%;object-fit:cover;}
   .pet-breakdown-row .pval{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--ink);}
+
+  .editing-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--honey-soft);color:#8A6A1E;border:1px solid #E4CB8E;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:12px;}
+  .editing-banner button{background:none;border:1.5px solid #8A6A1E;color:#8A6A1E;border-radius:20px;padding:4px 12px;font-size:11.5px;font-weight:600;cursor:pointer;flex-shrink:0;}
+  .seg button[disabled]{opacity:.4;cursor:not-allowed;}
 
   .loading{display:flex;align-items:center;justify-content:center;min-height:60vh;color:var(--ink-soft);font-size:14px;}
   .hidden{display:none !important;}
@@ -348,6 +355,7 @@ let selectedPetId = null;
 let petPhotoDataUrl = null;
 let feedQuickPetId = '';
 let addLogType = 'meal';
+let editingLog = null;
 let mealRatingValue = 0;
 
 const root = document.getElementById('root');
@@ -378,6 +386,7 @@ function getMyMealHistory(petId){
   return list.slice(0, 25);
 }
 function getOtherCategoryHistory(){
+  const hidden = new Set((currentProfile && currentProfile.hiddenCategories) || []);
   const seen = new Set(OTHER_CAT_SUGGESTIONS);
   const list = [...OTHER_CAT_SUGGESTIONS];
   allLogs.filter(x=>x.type==='other' && x.category).forEach(x=>{
@@ -385,7 +394,19 @@ function getOtherCategoryHistory(){
     if(!key || seen.has(key)) return;
     seen.add(key); list.push(key);
   });
-  return list.slice(0, 12);
+  return list.filter(c=>!hidden.has(c)).slice(0, 14);
+}
+async function removeOtherCategorySuggestion(cat){
+  try{
+    await db.collection('users').doc(currentUser.uid).update({
+      hiddenCategories: firebase.firestore.FieldValue.arrayUnion(cat)
+    });
+    if(!currentProfile.hiddenCategories) currentProfile.hiddenCategories = [];
+    currentProfile.hiddenCategories.push(cat);
+    toast('已移除這個類別建議');
+    const area = document.getElementById('logFormArea');
+    if(area) renderLogForm(selectedPetId);
+  }catch(e){ toast('操作失敗：'+e.message); }
 }
 
 auth.onAuthStateChanged(async (user)=>{
@@ -667,7 +688,7 @@ function renderApp(){
   document.getElementById('profileBtn').onclick = ()=>openProfileModal();
   document.getElementById('friendsBtn').onclick = ()=>openFriendsModal();
   document.querySelectorAll('.tab').forEach(b=>{
-    b.onclick = ()=>{ activeTab = b.dataset.tab; view='list'; renderApp(); };
+    b.onclick = ()=>{ activeTab = b.dataset.tab; view='list'; editingLog=null; renderApp(); };
   });
   if(activeTab==='pets'){
     if(view==='detail') renderPetDetail();
@@ -869,7 +890,7 @@ function renderPetsList(){
   `;
   document.getElementById('addPetBtn').onclick = ()=>{ view='addPet'; editingPet=null; renderAddPetForm(); };
   page.querySelectorAll('.pet-card').forEach(c=>{
-    c.onclick = ()=>{ selectedPetId = c.dataset.id; view='detail'; renderPetDetail(); };
+    c.onclick = ()=>{ selectedPetId = c.dataset.id; view='detail'; editingLog=null; renderPetDetail(); };
   });
 }
 function petCardHtml(p){
@@ -913,19 +934,22 @@ function renderPetDetail(){
     </div>
 
     <div class="section-title">照護紀錄</div>
+    ${editingLog ? `<div class="editing-banner">✎ 正在編輯這筆紀錄<button id="cancelLogEdit">取消編輯</button></div>` : ''}
     <div class="seg" id="logTypeSeg">
-      ${LOG_TYPES.map(t=>`<button class="${addLogType===t?'active type-'+t:''}" data-type="${t}"><span class="ic">${LOG_TYPE_ICON[t]}</span>${LOG_TYPE_LABEL[t]}</button>`).join('')}
+      ${LOG_TYPES.map(t=>`<button class="${addLogType===t?'active type-'+t:''}" data-type="${t}" ${editingLog?'disabled':''}><span class="ic">${LOG_TYPE_ICON[t]}</span>${LOG_TYPE_LABEL[t]}</button>`).join('')}
     </div>
     <div id="logFormArea" style="margin-bottom:16px;"></div>
 
     ${logs.length===0 ? `<div class="empty-state"><span class="ic">📋</span>還沒有任何照護紀錄</div>` : renderLogGroups(logs, false)}
   `;
-  document.getElementById('backToList').onclick = ()=>{ view='list'; renderPetsList(); };
+  document.getElementById('backToList').onclick = ()=>{ view='list'; editingLog=null; renderPetsList(); };
   document.getElementById('editPetBtn').onclick = ()=>{ view='editPet'; editingPet=p; renderAddPetForm(); };
   document.getElementById('delPetBtn').onclick = ()=>deletePet(p);
   page.querySelectorAll('#logTypeSeg button').forEach(b=>{
-    b.onclick = ()=>{ addLogType = b.dataset.type; renderPetDetail(); };
+    b.onclick = ()=>{ if(editingLog) return; addLogType = b.dataset.type; renderPetDetail(); };
   });
+  const cancelBtn = document.getElementById('cancelLogEdit');
+  if(cancelBtn) cancelBtn.onclick = ()=>{ editingLog=null; renderPetDetail(); };
   renderLogForm(p.id);
   bindFeedDeleteButtons(page);
 }
@@ -933,38 +957,57 @@ function renderPetDetail(){
 function renderLogForm(petId){
   const area = document.getElementById('logFormArea');
   if(!area) return;
-  mealRatingValue = 0;
   const t = addLogType;
+  const e = (editingLog && editingLog.type===t) ? editingLog : null;
+  mealRatingValue = e ? (e.rating||0) : 0;
   if(t==='meal'){
+    const unit = e ? (e.amountUnit||'g') : 'g';
+    const amtVal = e ? (e.amountValue!=null? e.amountValue : '') : '';
+    const canSizeVal = e ? (e.canSize!=null? e.canSize : '') : '';
     area.innerHTML = `
       <div class="form-card">
         <div class="grid2">
-          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${todayStr()}"></div>
-          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${nowTimeStr()}"></div>
+          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
+          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div>
         </div>
         <div class="field compact"><label>吃了什麼</label>
-          <textarea id="lg_food" placeholder="例如：飼料 50g、雞胸肉罐頭"></textarea>
+          <textarea id="lg_food" placeholder="例如：飼料、雞胸肉罐頭">${e? esc(e.food||''):''}</textarea>
           <button type="button" class="history-toggle" id="mealHistoryToggle" style="background:var(--moss-soft);color:var(--moss-deep);border:none;border-radius:20px;font-size:13px;font-weight:600;padding:8px 14px;margin-top:8px;cursor:pointer;">📋 從歷史選擇</button>
           <div class="hidden" id="mealHistoryPanel" style="margin-top:8px;max-height:200px;overflow-y:auto;border:1.5px solid var(--line);border-radius:12px;background:#FBFAF3;padding:4px;"></div>
         </div>
         <div class="grid2">
-          <div class="field compact"><label>份量（選填）</label><input type="text" id="lg_amount" placeholder="例如 50g 或 1/2 罐"></div>
-          <div class="field compact"><label>剩下多少（選填）</label>
-            <select id="lg_leftover">${LEFTOVER_OPTIONS.map(o=>`<option value="${esc(o)}">${o?esc(o):'—'}</option>`).join('')}</select>
+          <div class="field compact"><label>份量（選填）</label><input type="number" min="0" step="0.1" id="lg_amountval" placeholder="例如 50 或 1" value="${amtVal}"></div>
+          <div class="field compact"><label>單位</label>
+            <select id="lg_amountunit"><option value="g" ${unit==='g'?'selected':''}>g（克）</option><option value="罐" ${unit==='罐'?'selected':''}>罐</option></select>
           </div>
         </div>
-        <div class="field compact"><label>喜歡程度（選填）</label>
-          <div class="star-picker" id="mealStars" data-value="0">
-            ${[1,2,3,4,5].map(n=>`<button type="button" class="star-btn" data-val="${n}">☆</button>`).join('')}
+        <div class="field compact ${unit==='罐'?'':'hidden'}" id="canSizeWrap">
+          <label>每罐克數（選填）</label><input type="number" min="0" id="lg_cansize" placeholder="例如 85" value="${canSizeVal}">
+        </div>
+        <div class="grid2">
+          <div class="field compact"><label>剩下多少（選填）</label>
+            <select id="lg_leftover">${LEFTOVER_OPTIONS.map(o=>`<option value="${esc(o)}" ${e&&e.leftover===o?'selected':''}>${o?esc(o):'—'}</option>`).join('')}</select>
+          </div>
+          <div class="field compact"><label>喜歡程度（選填）</label>
+            <div class="star-picker" id="mealStars" data-value="${mealRatingValue}">
+              ${[1,2,3,4,5].map(n=>`<button type="button" class="star-btn" data-val="${n}">${n<=mealRatingValue?'★':'☆'}</button>`).join('')}
+            </div>
           </div>
         </div>
         <div class="grid2">
-          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 80"></div>
-          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事"></div>
+          <div class="field compact"><label>熱量 kcal（選填）</label><input type="number" min="0" id="lg_calories" placeholder="例如 120" value="${e&&e.calories!=null?e.calories:''}"></div>
+          <div class="field compact"><label>蛋白質 g（選填）</label><input type="number" min="0" id="lg_protein" placeholder="例如 8" value="${e&&e.protein!=null?e.protein:''}"></div>
         </div>
-        <div class="submit-row"><button class="btn btn-primary" id="submitLog">儲存這筆飲食紀錄</button></div>
+        <div class="grid2">
+          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 80" value="${e&&e.cost!=null?e.cost:''}"></div>
+          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事" value="${e?esc(e.note||''):''}"></div>
+        </div>
+        <div class="submit-row"><button class="btn btn-primary" id="submitLog">${e?'更新這筆飲食紀錄':'儲存這筆飲食紀錄'}</button></div>
       </div>
     `;
+    const unitSel = document.getElementById('lg_amountunit');
+    const canSizeWrap = document.getElementById('canSizeWrap');
+    unitSel.onchange = ()=> canSizeWrap.classList.toggle('hidden', unitSel.value!=='罐');
     const stars = document.getElementById('mealStars');
     stars.querySelectorAll('.star-btn').forEach(b=>{
       b.onclick = ()=>{
@@ -981,13 +1024,18 @@ function renderLogForm(petId){
         const list = getMyMealHistory(petId);
         panel.innerHTML = list.length===0
           ? `<div class="history-empty">還沒有可以選的紀錄,先自己填一次看看</div>`
-          : list.map(x=>`<button type="button" class="history-item" data-key="${esc(x.food)}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);padding:9px 8px;cursor:pointer;font-size:13px;color:var(--ink);"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(x.food)}</span><span style="flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);">${esc(x.amount||'')}</span></button>`).join('');
+          : list.map(x=>`<button type="button" class="history-item" data-key="${esc(x.food)}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);padding:9px 8px;cursor:pointer;font-size:13px;color:var(--ink);"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(x.food)}</span><span style="flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);">${x.amountValue?esc(String(x.amountValue))+(x.amountUnit||''):''}</span></button>`).join('');
         panel.querySelectorAll('.history-item').forEach(item=>{
           item.onclick = ()=>{
             const match = getMyMealHistory(petId).find(x=>x.food===item.dataset.key);
             if(!match) return;
             document.getElementById('lg_food').value = match.food || '';
-            document.getElementById('lg_amount').value = match.amount || '';
+            document.getElementById('lg_amountval').value = match.amountValue!=null? match.amountValue : '';
+            document.getElementById('lg_amountunit').value = match.amountUnit || 'g';
+            canSizeWrap.classList.toggle('hidden', (match.amountUnit||'g')!=='罐');
+            document.getElementById('lg_cansize').value = match.canSize!=null? match.canSize : '';
+            document.getElementById('lg_calories').value = match.calories!=null? match.calories : '';
+            document.getElementById('lg_protein').value = match.protein!=null? match.protein : '';
             panel.classList.add('hidden');
             toast('已帶入歷史紀錄');
           };
@@ -999,15 +1047,15 @@ function renderLogForm(petId){
     area.innerHTML = `
       <div class="form-card">
         <div class="grid2">
-          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${todayStr()}"></div>
-          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${nowTimeStr()}"></div>
+          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
+          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div>
         </div>
-        <div class="field compact"><label>看診內容</label><textarea id="lg_content" placeholder="例如：例行健檢、皮膚紅腫就診"></textarea></div>
+        <div class="field compact"><label>看診內容</label><textarea id="lg_content" placeholder="例如：例行健檢、皮膚紅腫就診">${e?esc(e.content||''):''}</textarea></div>
         <div class="grid2">
-          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 800"></div>
-          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="醫囑、回診時間等"></div>
+          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 800" value="${e&&e.cost!=null?e.cost:''}"></div>
+          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="醫囑、回診時間等" value="${e?esc(e.note||''):''}"></div>
         </div>
-        <div class="submit-row"><button class="btn btn-primary" id="submitLog">儲存這筆看診紀錄</button></div>
+        <div class="submit-row"><button class="btn btn-primary" id="submitLog">${e?'更新這筆看診紀錄':'儲存這筆看診紀錄'}</button></div>
       </div>
     `;
     document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'vet');
@@ -1015,18 +1063,18 @@ function renderLogForm(petId){
     area.innerHTML = `
       <div class="form-card">
         <div class="grid2">
-          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${todayStr()}"></div>
-          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${nowTimeStr()}"></div>
+          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
+          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div>
         </div>
         <div class="grid2">
-          <div class="field compact"><label>藥品名稱</label><input type="text" id="lg_medname" placeholder="例如：心絲蟲預防藥"></div>
-          <div class="field compact"><label>劑量（選填）</label><input type="text" id="lg_dosage" placeholder="例如 1 顆、0.5ml"></div>
+          <div class="field compact"><label>藥品名稱</label><input type="text" id="lg_medname" placeholder="例如：心絲蟲預防藥" value="${e?esc(e.medName||''):''}"></div>
+          <div class="field compact"><label>劑量（選填）</label><input type="text" id="lg_dosage" placeholder="例如 1 顆、0.5ml" value="${e?esc(e.dosage||''):''}"></div>
         </div>
         <div class="grid2">
-          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 300"></div>
-          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事"></div>
+          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 300" value="${e&&e.cost!=null?e.cost:''}"></div>
+          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事" value="${e?esc(e.note||''):''}"></div>
         </div>
-        <div class="submit-row"><button class="btn btn-primary" id="submitLog">儲存這筆用藥紀錄</button></div>
+        <div class="submit-row"><button class="btn btn-primary" id="submitLog">${e?'更新這筆用藥紀錄':'儲存這筆用藥紀錄'}</button></div>
       </div>
     `;
     document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'med');
@@ -1034,23 +1082,31 @@ function renderLogForm(petId){
     area.innerHTML = `
       <div class="form-card">
         <div class="grid2">
-          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${todayStr()}"></div>
-          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${nowTimeStr()}"></div>
+          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
+          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div>
         </div>
         <div class="field compact"><label>類別</label>
-          <input type="text" id="lg_category" placeholder="例如：用品、美容">
-          <div class="chip-row">${getOtherCategoryHistory().map(c=>`<button type="button" class="cat-chip" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+          <input type="text" id="lg_category" placeholder="例如：用品、美容" value="${e?esc(e.category||''):''}">
+          <div class="chip-row">${getOtherCategoryHistory().map(c=>`<span class="cat-chip" data-cat="${esc(c)}"><span class="cat-label">${esc(c)}</span><button type="button" class="cat-del" data-cat="${esc(c)}" title="移除這個建議">🗑</button></span>`).join('')}</div>
         </div>
-        <div class="field compact"><label>內容</label><input type="text" id="lg_content" placeholder="例如：買飼料、洗澡剪毛"></div>
+        <div class="field compact"><label>內容</label><input type="text" id="lg_content" placeholder="例如：買飼料、洗澡剪毛" value="${e?esc(e.content||''):''}"></div>
         <div class="grid2">
-          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 500"></div>
-          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事"></div>
+          <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 500" value="${e&&e.cost!=null?e.cost:''}"></div>
+          <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事" value="${e?esc(e.note||''):''}"></div>
         </div>
-        <div class="submit-row"><button class="btn btn-primary" id="submitLog">儲存這筆支出</button></div>
+        <div class="submit-row"><button class="btn btn-primary" id="submitLog">${e?'更新這筆支出':'儲存這筆支出'}</button></div>
       </div>
     `;
-    area.querySelectorAll('.cat-chip').forEach(b=>{
-      b.onclick = ()=>{ document.getElementById('lg_category').value = b.dataset.cat; };
+    area.querySelectorAll('.cat-chip .cat-label').forEach(el=>{
+      el.onclick = ()=>{ document.getElementById('lg_category').value = el.parentElement.dataset.cat; };
+    });
+    area.querySelectorAll('.cat-chip .cat-del').forEach(b=>{
+      b.onclick = (ev)=>{
+        ev.stopPropagation();
+        if(confirm(`確定要移除「${b.dataset.cat}」這個類別建議嗎？（之前用這個類別記錄過的支出不會被刪除）`)){
+          removeOtherCategorySuggestion(b.dataset.cat);
+        }
+      };
     });
     document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'other');
   }
@@ -1070,14 +1126,23 @@ function renderLogGroups(logs, showPetName){
 function logCardHtml(f, showPetName){
   const pet = allPets.find(p=>p.id===f.petId);
   const mine = f.uid === (currentUser && currentUser.uid);
+  const canEdit = mine || (pet && hasAccess(pet.ownerId));
   const t = f.type || 'meal';
   let titleHtml, subHtml = '';
   if(t==='meal'){
     titleHtml = `<div class="feed-food">${esc(f.food||'')}</div>`;
     const bits = [];
-    if(f.amount) bits.push(`份量：${esc(f.amount)}`);
+    if(f.amountValue!=null && f.amountValue!==''){
+      bits.push(`份量：${f.amountValue}${f.amountUnit==='罐' ? ' 罐'+(f.canSize? `（${f.canSize}g/罐）` : '') : 'g'}`);
+    } else if(f.amount){
+      bits.push(`份量：${esc(f.amount)}`);
+    }
     if(f.leftover) bits.push(`剩：${esc(f.leftover)}`);
     if(bits.length) subHtml += `<div class="feed-amount">${bits.join(' ・ ')}</div>`;
+    const nutriBits = [];
+    if(f.calories!=null && f.calories!=='') nutriBits.push(`${f.calories} kcal`);
+    if(f.protein!=null && f.protein!=='') nutriBits.push(`蛋白質 ${f.protein}g`);
+    if(nutriBits.length) subHtml += `<div class="feed-amount">${nutriBits.join(' ・ ')}</div>`;
     if(f.rating) subHtml += `<div class="log-stars">${'★'.repeat(f.rating)}${'☆'.repeat(5-f.rating)}</div>`;
   } else if(t==='vet'){
     titleHtml = `<div class="feed-food">${esc(f.content||'')}</div>`;
@@ -1100,7 +1165,7 @@ function logCardHtml(f, showPetName){
         ${titleHtml}
         ${subHtml}
         ${f.note ? `<div class="feed-note">${esc(f.note)}</div>` : ''}
-        ${mine || (pet && hasAccess(pet.ownerId)) ? `<div class="feed-actions"><button class="del-btn" data-fid="${f.id}" data-pid="${f.petId}">刪除</button></div>` : ''}
+        ${canEdit ? `<div class="feed-actions"><button class="edit-btn" data-fid="${f.id}" data-pid="${f.petId}">編輯</button><button class="del-btn" data-fid="${f.id}" data-pid="${f.petId}">刪除</button></div>` : ''}
       </div>
     </div>
   `;
@@ -1109,6 +1174,18 @@ function bindFeedDeleteButtons(container){
   container.querySelectorAll('.del-btn[data-fid]').forEach(b=>{
     b.onclick = ()=>deleteLog(b.dataset.pid, b.dataset.fid);
   });
+  container.querySelectorAll('.edit-btn[data-fid]').forEach(b=>{
+    b.onclick = ()=>startEditLog(b.dataset.pid, b.dataset.fid);
+  });
+}
+function startEditLog(petId, logId){
+  const log = (logsByPet[petId]||[]).find(l=>l.id===logId);
+  if(!log){ toast('找不到這筆紀錄'); return; }
+  editingLog = log;
+  addLogType = log.type || 'meal';
+  selectedPetId = petId;
+  activeTab = 'pets'; view = 'detail';
+  renderApp();
 }
 function formatDate(d){
   const dt = new Date(d+'T00:00:00');
@@ -1121,21 +1198,35 @@ async function submitLog(petId, type){
   const date = document.getElementById('lg_date').value;
   const time = document.getElementById('lg_time').value;
   if(!date || !time){ toast('請選擇日期和時間'); return; }
+  const isEdit = !!editingLog;
   const costVal = document.getElementById('lg_cost').value;
   const data = {
-    type, uid: currentUser.uid, name: currentProfile.name,
-    date, time,
+    type, date, time,
     cost: costVal===''? null : Number(costVal),
     note: document.getElementById('lg_note').value.trim(),
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
+  if(!isEdit){
+    data.uid = currentUser.uid;
+    data.name = currentProfile.name;
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+  }
   if(type==='meal'){
     const food = document.getElementById('lg_food').value.trim();
     if(!food){ toast('請填寫吃了什麼'); return; }
+    const amtValRaw = document.getElementById('lg_amountval').value;
+    const unit = document.getElementById('lg_amountunit').value;
+    const canSizeRaw = document.getElementById('lg_cansize').value;
+    const calRaw = document.getElementById('lg_calories').value;
+    const proRaw = document.getElementById('lg_protein').value;
     data.food = food;
-    data.amount = document.getElementById('lg_amount').value.trim();
+    data.amount = null; // legacy field, superseded by amountValue/amountUnit
+    data.amountValue = amtValRaw===''? null : Number(amtValRaw);
+    data.amountUnit = unit;
+    data.canSize = (unit==='罐' && canSizeRaw!=='') ? Number(canSizeRaw) : null;
     data.leftover = document.getElementById('lg_leftover').value;
     data.rating = mealRatingValue || 0;
+    data.calories = calRaw===''? null : Number(calRaw);
+    data.protein = proRaw===''? null : Number(proRaw);
   } else if(type==='vet'){
     const content = document.getElementById('lg_content').value.trim();
     if(!content){ toast('請填寫看診內容'); return; }
@@ -1151,16 +1242,25 @@ async function submitLog(petId, type){
     data.category = category;
     data.content = document.getElementById('lg_content').value.trim();
   }
-  btn.disabled = true; btn.textContent = '儲存中…';
+  btn.disabled = true; btn.textContent = isEdit? '更新中…':'儲存中…';
   try{
-    const ref = await db.collection('pets').doc(petId).collection('logs').add(data);
-    logsByPet[petId] = [...(logsByPet[petId]||[]), {id:ref.id, petId, ...data}];
-    rebuildAllLogs();
-    toast('已儲存這筆紀錄 ' + LOG_TYPE_ICON[type]);
-    renderPetDetail();
+    if(isEdit){
+      await db.collection('pets').doc(petId).collection('logs').doc(editingLog.id).update(data);
+      logsByPet[petId] = (logsByPet[petId]||[]).map(l=> l.id===editingLog.id ? {...l, ...data} : l);
+      rebuildAllLogs();
+      toast('已更新這筆紀錄 ' + LOG_TYPE_ICON[type]);
+      editingLog = null;
+      renderPetDetail();
+    } else {
+      const ref = await db.collection('pets').doc(petId).collection('logs').add(data);
+      logsByPet[petId] = [...(logsByPet[petId]||[]), {id:ref.id, petId, ...data}];
+      rebuildAllLogs();
+      toast('已儲存這筆紀錄 ' + LOG_TYPE_ICON[type]);
+      renderPetDetail();
+    }
   }catch(e){
     console.error(e); toast('儲存失敗：'+e.message);
-    btn.disabled = false; btn.textContent = '儲存';
+    btn.disabled = false; btn.textContent = isEdit? '更新':'儲存';
   }
 }
 async function deleteLog(petId, logId){
@@ -1170,6 +1270,7 @@ async function deleteLog(petId, logId){
     toast('已刪除');
   }catch(e){ toast('刪除失敗：'+e.message); }
 }
+
 
 /* ================= ADD / EDIT PET ================= */
 let editingPet = null;
