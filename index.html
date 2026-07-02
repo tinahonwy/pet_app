@@ -140,7 +140,7 @@
   .pet-detail-photo-fallback{width:100%;height:160px;border-radius:14px;background:var(--moss-soft);display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:14px;}
   .pet-detail-name{font-size:24px;font-weight:600;margin:0 0 4px;display:flex;align-items:center;gap:8px;}
   .pet-detail-sub{font-size:13px;color:var(--ink-soft);margin-bottom:12px;}
-  .pet-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .pet-info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:10px;margin-bottom:12px;}
   .pet-info-item{background:var(--paper);border-radius:12px;padding:9px 12px;}
   .pet-info-item .lbl{font-size:10.5px;color:var(--ink-soft);margin-bottom:2px;}
   .pet-info-item .val{font-size:14px;font-weight:600;color:var(--ink);}
@@ -326,6 +326,24 @@ function petColor(petId){
   const s = petId||'';
   for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) % 997; }
   return PALETTE[h % PALETTE.length];
+}
+function calcPetAge(birthday){
+  if(!birthday) return '';
+  const b = new Date(birthday+'T00:00:00');
+  if(isNaN(b.getTime())) return '';
+  const now = new Date();
+  if(b > now) return '';
+  let years = now.getFullYear() - b.getFullYear();
+  let months = now.getMonth() - b.getMonth();
+  if(now.getDate() < b.getDate()) months--;
+  if(months < 0){ years--; months += 12; }
+  if(years === 0 && months === 0){
+    const days = Math.floor((now - b) / (1000*60*60*24));
+    return days <= 0 ? '剛出生' : `${days} 天`;
+  }
+  if(years === 0) return `${months} 個月`;
+  if(months === 0) return `${years} 歲`;
+  return `${years} 歲 ${months} 個月`;
 }
 async function pickAvailableColor(excludeUid){
   try{
@@ -982,12 +1000,13 @@ function renderPetsList(){
 function petCardHtml(p){
   const ownerTag = isMine(p.ownerId) ? '' : `<div class="pet-owner-tag">${userAvatar(p.ownerId)?`<img src="${userAvatar(p.ownerId)}">`:'👤'} ${esc(userName(p.ownerId))}</div>`;
   const speciesLabel = p.species==='其他' ? (p.speciesOther||'其他') : p.species;
+  const age = calcPetAge(p.birthday);
   const c = petColor(p.id);
   return `
     <div class="pet-card" data-id="${p.id}">
       ${p.photo ? `<img class="pet-photo" src="${p.photo}" style="box-shadow:inset 0 0 0 3px ${c};">` : `<div class="pet-photo-fallback" style="background:${c}33;box-shadow:inset 0 0 0 3px ${c};">${SPECIES_ICON[p.species]||'🐾'}</div>`}
       <div class="pet-name"><span class="pet-color-dot" style="background:${c}"></span>${esc(p.name)}</div>
-      <div class="pet-meta">${esc(speciesLabel)}${p.breed? ' · '+esc(p.breed):''}</div>
+      <div class="pet-meta">${esc(speciesLabel)}${p.breed? ' · '+esc(p.breed):''}${age? ' · '+age:''}</div>
       ${ownerTag}
     </div>
   `;
@@ -1010,7 +1029,10 @@ function renderPetDetail(){
       <div class="pet-detail-sub">${esc(speciesLabel)}${p.breed? ' · '+esc(p.breed):''}${p.gender? ' · '+esc(p.gender):''} ・ 由 ${esc(userName(p.ownerId))} 建立</div>
       <div class="pet-info-grid">
         <div class="pet-info-item"><div class="lbl">生日</div><div class="val">${p.birthday ? esc(p.birthday) : '未填寫'}</div></div>
+        ${p.birthday && calcPetAge(p.birthday) ? `<div class="pet-info-item"><div class="lbl">年齡</div><div class="val">${calcPetAge(p.birthday)}</div></div>` : ''}
         <div class="pet-info-item"><div class="lbl">體重</div><div class="val">${p.weight ? p.weight+' kg' : '未填寫'}</div></div>
+        ${p.familyDate ? `<div class="pet-info-item"><div class="lbl">成為家人的日子</div><div class="val">${esc(p.familyDate)}</div></div>` : ''}
+        ${p.familyDate && calcPetAge(p.familyDate) ? `<div class="pet-info-item"><div class="lbl">相伴時光</div><div class="val">${calcPetAge(p.familyDate)}</div></div>` : ''}
       </div>
       ${p.notes ? `<div class="pet-note-block"><div class="lbl">備註</div>${esc(p.notes)}</div>` : ''}
       ${p.vaccineNotes ? `<div class="pet-note-block"><div class="lbl">疫苗 / 醫療紀錄</div>${esc(p.vaccineNotes)}</div>` : ''}
@@ -1433,7 +1455,7 @@ function renderAddPetForm(){
         </div>
         <input type="file" id="p_photo" accept="image/*" style="display:none">
       </div>
-      <div class="field compact"><label>名字</label><input type="text" id="p_name" placeholder="例如：嘟嘟" value="${p? esc(p.name):''}"></div>
+      <div class="field compact"><label>名字</label><input type="text" id="p_name" placeholder="例如：豆豆" value="${p? esc(p.name):''}"></div>
       <div class="field compact"><label>代表色</label>
         <div class="color-picker" id="petColorPicker">
           ${PALETTE.map(c=>`<button type="button" class="color-swatch ${c===petColorValue?'selected':''}" data-color="${c}" style="background:${c}"></button>`).join('')}
@@ -1456,7 +1478,10 @@ function renderAddPetForm(){
         <div class="field compact"><label>品種（選填）</label><input type="text" id="p_breed" placeholder="例如：柯基" value="${p? esc(p.breed||''):''}"></div>
         <div class="field compact"><label>體重 kg（選填）</label><input type="number" step="0.1" min="0" id="p_weight" value="${p&&p.weight?p.weight:''}"></div>
       </div>
-      <div class="field compact"><label>生日（選填）</label><input type="date" id="p_birthday" value="${p&&p.birthday?p.birthday:''}"></div>
+      <div class="grid2">
+        <div class="field compact"><label>生日（選填）</label><input type="date" id="p_birthday" value="${p&&p.birthday?p.birthday:''}"></div>
+        <div class="field compact"><label>成為家人的日子（選填）</label><input type="date" id="p_familydate" value="${p&&p.familyDate?p.familyDate:''}"></div>
+      </div>
       <div class="field compact"><label>疫苗 / 醫療紀錄（選填）</label><textarea id="p_vaccine" placeholder="例如：2026/03 施打狂犬病疫苗">${p? esc(p.vaccineNotes||''):''}</textarea></div>
       <div class="field compact"><label>備註（選填）</label><textarea id="p_notes" placeholder="個性、飲食禁忌、任何想記下的事">${p? esc(p.notes||''):''}</textarea></div>
       <div class="submit-row"><button class="btn btn-primary" id="submitPet">${p? '更新寵物資料':'儲存這隻寵物'}</button></div>
@@ -1528,6 +1553,7 @@ async function submitPet(){
     breed: document.getElementById('p_breed').value.trim(),
     weight: weightVal===''? null : Number(weightVal),
     birthday: document.getElementById('p_birthday').value,
+    familyDate: document.getElementById('p_familydate').value,
     vaccineNotes: document.getElementById('p_vaccine').value.trim(),
     notes: document.getElementById('p_notes').value.trim(),
     photo: petPhotoDataUrl || null,
