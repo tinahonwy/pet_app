@@ -125,7 +125,8 @@
   .pet-card:active{transform:scale(0.98);}
   .pet-photo{width:100%;aspect-ratio:1;border-radius:14px;object-fit:cover;background:var(--moss-soft);margin-bottom:8px;}
   .pet-photo-fallback{width:100%;aspect-ratio:1;border-radius:14px;background:var(--moss-soft);display:flex;align-items:center;justify-content:center;font-size:30px;margin-bottom:8px;}
-  .pet-name{font-size:14.5px;font-weight:600;color:var(--ink);}
+  .pet-name{font-size:14.5px;font-weight:600;color:var(--ink);display:flex;align-items:center;justify-content:center;gap:5px;}
+  .pet-color-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block;}
   .pet-meta{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
   .pet-owner-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--ink-soft);margin-top:6px;background:var(--paper);padding:2px 8px;border-radius:20px;}
   .pet-owner-tag img{width:13px;height:13px;border-radius:50%;object-fit:cover;}
@@ -137,7 +138,7 @@
   .pet-detail-hero{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow);margin-bottom:18px;}
   .pet-detail-photo{width:100%;max-height:260px;border-radius:14px;object-fit:cover;margin-bottom:14px;background:var(--moss-soft);}
   .pet-detail-photo-fallback{width:100%;height:160px;border-radius:14px;background:var(--moss-soft);display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:14px;}
-  .pet-detail-name{font-size:24px;font-weight:600;margin:0 0 4px;}
+  .pet-detail-name{font-size:24px;font-weight:600;margin:0 0 4px;display:flex;align-items:center;gap:8px;}
   .pet-detail-sub{font-size:13px;color:var(--ink-soft);margin-bottom:12px;}
   .pet-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
   .pet-info-item{background:var(--paper);border-radius:12px;padding:9px 12px;}
@@ -191,6 +192,7 @@
   .feed-food{font-size:14.5px;font-weight:500;margin:4px 0 2px;line-height:1.4;}
   .feed-amount{font-size:12px;color:var(--ink-soft);}
   .feed-note{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+  .feed-photo{width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-top:8px;display:block;}
   .feed-actions{display:flex;justify-content:flex-end;margin-top:6px;}
   .del-btn{background:none;border:none;color:#B7AF9E;font-size:11.5px;cursor:pointer;text-decoration:underline;}
   .del-btn:hover{color:var(--err);}
@@ -226,11 +228,12 @@
   .star-btn:active{transform:scale(0.9);}
 
   .chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
-  .cat-chip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);padding:5px 4px 5px 12px;border-radius:20px;font-size:12px;display:inline-flex;align-items:center;gap:4px;}
-  .cat-chip .cat-label{cursor:pointer;}
+  .cat-chip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer;}
   .cat-chip:hover{border-color:var(--moss);color:var(--moss-deep);}
-  .cat-chip .cat-del{background:none;border:none;color:#B7AF9E;font-size:12px;cursor:pointer;padding:2px 6px;line-height:1;border-radius:50%;}
-  .cat-chip .cat-del:hover{color:var(--err);background:#F8E7E1;}
+  .manage-cat-link{background:none;border:none;color:var(--ink-soft);font-size:12px;text-decoration:underline;cursor:pointer;padding:0;margin-top:8px;}
+  .manage-cat-link:hover{color:var(--moss-deep);}
+  .manage-cat-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .manage-cat-row:last-child{border-bottom:none;}
 
   .type-filter{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
   .type-filter .chip{border:1.5px solid var(--line);background:var(--surface);color:var(--ink-soft);padding:7px 14px;border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;}
@@ -316,6 +319,14 @@ function nameColor(uid){
   for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) % 997; }
   return PALETTE[h % PALETTE.length];
 }
+function petColor(petId){
+  const p = allPets.find(x=>x.id===petId);
+  if(p && p.color) return p.color;
+  let h = 0;
+  const s = petId||'';
+  for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) % 997; }
+  return PALETTE[h % PALETTE.length];
+}
 async function pickAvailableColor(excludeUid){
   try{
     const snap = await db.collection('users').get();
@@ -357,6 +368,7 @@ let feedQuickPetId = '';
 let addLogType = 'meal';
 let editingLog = null;
 let mealRatingValue = 0;
+let logPhotoDataUrl = null;
 
 const root = document.getElementById('root');
 
@@ -385,28 +397,102 @@ function getMyMealHistory(petId){
   });
   return list.slice(0, 25);
 }
-function getOtherCategoryHistory(){
-  const hidden = new Set((currentProfile && currentProfile.hiddenCategories) || []);
+function allCategorySuggestions(){
   const seen = new Set(OTHER_CAT_SUGGESTIONS);
   const list = [...OTHER_CAT_SUGGESTIONS];
+  ((currentProfile && currentProfile.customCategories) || []).forEach(c=>{
+    if(!seen.has(c)){ seen.add(c); list.push(c); }
+  });
   allLogs.filter(x=>x.type==='other' && x.category).forEach(x=>{
     const key = x.category.trim();
     if(!key || seen.has(key)) return;
     seen.add(key); list.push(key);
   });
-  return list.filter(c=>!hidden.has(c)).slice(0, 14);
+  return list;
 }
-async function removeOtherCategorySuggestion(cat){
+function getOtherCategoryHistory(){
+  const hidden = new Set((currentProfile && currentProfile.hiddenCategories) || []);
+  return allCategorySuggestions().filter(c=>!hidden.has(c)).slice(0, 16);
+}
+async function addCustomCategory(cat){
+  cat = cat.trim();
+  if(!cat) return;
   try{
     await db.collection('users').doc(currentUser.uid).update({
-      hiddenCategories: firebase.firestore.FieldValue.arrayUnion(cat)
+      customCategories: firebase.firestore.FieldValue.arrayUnion(cat),
+      hiddenCategories: firebase.firestore.FieldValue.arrayRemove(cat)
     });
-    if(!currentProfile.hiddenCategories) currentProfile.hiddenCategories = [];
-    currentProfile.hiddenCategories.push(cat);
-    toast('已移除這個類別建議');
-    const area = document.getElementById('logFormArea');
-    if(area) renderLogForm(selectedPetId);
+    if(!currentProfile.customCategories) currentProfile.customCategories = [];
+    if(!currentProfile.customCategories.includes(cat)) currentProfile.customCategories.push(cat);
+    currentProfile.hiddenCategories = (currentProfile.hiddenCategories||[]).filter(c=>c!==cat);
+    toast('已新增類別');
   }catch(e){ toast('操作失敗：'+e.message); }
+}
+async function removeCategorySuggestion(cat){
+  try{
+    const isCustom = (currentProfile.customCategories||[]).includes(cat);
+    if(isCustom){
+      await db.collection('users').doc(currentUser.uid).update({
+        customCategories: firebase.firestore.FieldValue.arrayRemove(cat)
+      });
+      currentProfile.customCategories = (currentProfile.customCategories||[]).filter(c=>c!==cat);
+    } else {
+      await db.collection('users').doc(currentUser.uid).update({
+        hiddenCategories: firebase.firestore.FieldValue.arrayUnion(cat)
+      });
+      if(!currentProfile.hiddenCategories) currentProfile.hiddenCategories = [];
+      currentProfile.hiddenCategories.push(cat);
+    }
+    toast('已移除這個類別');
+  }catch(e){ toast('操作失敗：'+e.message); }
+}
+function openCategoryManageModal(){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'categoryModalOverlay';
+  overlay.innerHTML = `
+    <div class="modal-card">
+      <div class="modal-head"><h3 class="display">管理類別</h3><button class="modal-close" id="closeCategoryModal">✕</button></div>
+      <div id="categoryModalBody"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById('closeCategoryModal').onclick = ()=>{ overlay.remove(); renderLogForm(selectedPetId); };
+  overlay.onclick = (ev)=>{ if(ev.target===overlay){ overlay.remove(); renderLogForm(selectedPetId); } };
+  renderCategoryModalBody();
+}
+function renderCategoryModalBody(){
+  const body = document.getElementById('categoryModalBody');
+  if(!body) return;
+  const list = getOtherCategoryHistory();
+  body.innerHTML = `
+    <div class="friends-section">
+      <div class="friends-section-title">目前的類別${list.length? '（'+list.length+'）':''}</div>
+      ${list.length===0 ? `<div class="history-empty">還沒有任何類別</div>` : list.map(c=>`
+        <div class="manage-cat-row"><span>${esc(c)}</span><button class="friend-remove" data-cat="${esc(c)}">移除</button></div>
+      `).join('')}
+    </div>
+    <div class="friends-section">
+      <div class="friends-section-title">新增類別</div>
+      <div class="field compact"><input type="text" id="newCategoryInput" placeholder="例如：貓砂、玩具" maxlength="20"></div>
+      <button class="btn btn-primary" id="addCategoryBtn">新增</button>
+    </div>
+  `;
+  body.querySelectorAll('.friend-remove').forEach(b=>{
+    b.onclick = async ()=>{
+      if(!confirm(`確定要移除「${b.dataset.cat}」這個類別嗎？（之前用這個類別記錄過的支出不會被刪除）`)) return;
+      await removeCategorySuggestion(b.dataset.cat);
+      renderCategoryModalBody();
+    };
+  });
+  document.getElementById('addCategoryBtn').onclick = async ()=>{
+    const input = document.getElementById('newCategoryInput');
+    const val = input.value.trim();
+    if(!val){ toast('請輸入類別名稱'); return; }
+    await addCustomCategory(val);
+    input.value = '';
+    renderCategoryModalBody();
+  };
 }
 
 auth.onAuthStateChanged(async (user)=>{
@@ -896,10 +982,11 @@ function renderPetsList(){
 function petCardHtml(p){
   const ownerTag = isMine(p.ownerId) ? '' : `<div class="pet-owner-tag">${userAvatar(p.ownerId)?`<img src="${userAvatar(p.ownerId)}">`:'👤'} ${esc(userName(p.ownerId))}</div>`;
   const speciesLabel = p.species==='其他' ? (p.speciesOther||'其他') : p.species;
+  const c = petColor(p.id);
   return `
     <div class="pet-card" data-id="${p.id}">
-      ${p.photo ? `<img class="pet-photo" src="${p.photo}">` : `<div class="pet-photo-fallback">${SPECIES_ICON[p.species]||'🐾'}</div>`}
-      <div class="pet-name">${esc(p.name)}</div>
+      ${p.photo ? `<img class="pet-photo" src="${p.photo}" style="box-shadow:inset 0 0 0 3px ${c};">` : `<div class="pet-photo-fallback" style="background:${c}33;box-shadow:inset 0 0 0 3px ${c};">${SPECIES_ICON[p.species]||'🐾'}</div>`}
+      <div class="pet-name"><span class="pet-color-dot" style="background:${c}"></span>${esc(p.name)}</div>
       <div class="pet-meta">${esc(speciesLabel)}${p.breed? ' · '+esc(p.breed):''}</div>
       ${ownerTag}
     </div>
@@ -917,9 +1004,9 @@ function renderPetDetail(){
 
   page.innerHTML = `
     <div class="back-row"><button class="back-btn" id="backToList">← 回寵物列表</button></div>
-    <div class="pet-detail-hero">
-      ${p.photo ? `<img class="pet-detail-photo" src="${p.photo}">` : `<div class="pet-detail-photo-fallback">${SPECIES_ICON[p.species]||'🐾'}</div>`}
-      <div class="pet-detail-name">${esc(p.name)}</div>
+    <div class="pet-detail-hero" style="border-top:4px solid ${petColor(p.id)};">
+      ${p.photo ? `<img class="pet-detail-photo" src="${p.photo}" style="box-shadow:inset 0 0 0 4px ${petColor(p.id)};">` : `<div class="pet-detail-photo-fallback" style="background:${petColor(p.id)}33;box-shadow:inset 0 0 0 4px ${petColor(p.id)};">${SPECIES_ICON[p.species]||'🐾'}</div>`}
+      <div class="pet-detail-name"><span class="pet-color-dot" style="background:${petColor(p.id)};width:11px;height:11px;"></span>${esc(p.name)}</div>
       <div class="pet-detail-sub">${esc(speciesLabel)}${p.breed? ' · '+esc(p.breed):''}${p.gender? ' · '+esc(p.gender):''} ・ 由 ${esc(userName(p.ownerId))} 建立</div>
       <div class="pet-info-grid">
         <div class="pet-info-item"><div class="lbl">生日</div><div class="val">${p.birthday ? esc(p.birthday) : '未填寫'}</div></div>
@@ -960,6 +1047,7 @@ function renderLogForm(petId){
   const t = addLogType;
   const e = (editingLog && editingLog.type===t) ? editingLog : null;
   mealRatingValue = e ? (e.rating||0) : 0;
+  logPhotoDataUrl = e ? (e.photo || null) : null;
   if(t==='meal'){
     const unit = e ? (e.amountUnit||'g') : 'g';
     const amtVal = e ? (e.amountValue!=null? e.amountValue : '') : '';
@@ -997,6 +1085,12 @@ function renderLogForm(petId){
         <div class="grid2">
           <div class="field compact"><label>熱量 kcal（選填）</label><input type="number" min="0" id="lg_calories" placeholder="例如 120" value="${e&&e.calories!=null?e.calories:''}"></div>
           <div class="field compact"><label>蛋白質 g（選填）</label><input type="number" min="0" id="lg_protein" placeholder="例如 8" value="${e&&e.protein!=null?e.protein:''}"></div>
+        </div>
+        <div class="field compact"><label>照片（選填）</label>
+          <div class="photo-box ${logPhotoDataUrl?'has-img':''}" id="logPhotoBox">
+            ${logPhotoDataUrl ? `<img src="${logPhotoDataUrl}"><button class="photo-remove" id="removeLogPhoto">✕</button>` : `<div class="placeholder"><span class="ic">📷</span>拍照或選擇照片</div>`}
+          </div>
+          <input type="file" id="lg_photo" accept="image/*" style="display:none">
         </div>
         <div class="grid2">
           <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 80" value="${e&&e.cost!=null?e.cost:''}"></div>
@@ -1042,6 +1136,7 @@ function renderLogForm(petId){
         });
       }
     };
+    bindLogPhotoBox();
     document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'meal');
   } else if(t==='vet'){
     area.innerHTML = `
@@ -1087,9 +1182,16 @@ function renderLogForm(petId){
         </div>
         <div class="field compact"><label>類別</label>
           <input type="text" id="lg_category" placeholder="例如：用品、美容" value="${e?esc(e.category||''):''}">
-          <div class="chip-row">${getOtherCategoryHistory().map(c=>`<span class="cat-chip" data-cat="${esc(c)}"><span class="cat-label">${esc(c)}</span><button type="button" class="cat-del" data-cat="${esc(c)}" title="移除這個建議">🗑</button></span>`).join('')}</div>
+          <div class="chip-row">${getOtherCategoryHistory().map(c=>`<button type="button" class="cat-chip" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+          <button type="button" class="manage-cat-link" id="manageCategoriesBtn">⚙ 新增／刪除類別</button>
         </div>
         <div class="field compact"><label>內容</label><input type="text" id="lg_content" placeholder="例如：買飼料、洗澡剪毛" value="${e?esc(e.content||''):''}"></div>
+        <div class="field compact"><label>照片（選填）</label>
+          <div class="photo-box ${logPhotoDataUrl?'has-img':''}" id="logPhotoBox">
+            ${logPhotoDataUrl ? `<img src="${logPhotoDataUrl}"><button class="photo-remove" id="removeLogPhoto">✕</button>` : `<div class="placeholder"><span class="ic">📷</span>拍照或選擇照片</div>`}
+          </div>
+          <input type="file" id="lg_photo" accept="image/*" style="display:none">
+        </div>
         <div class="grid2">
           <div class="field compact"><label>花費 NT$（選填）</label><input type="number" min="0" id="lg_cost" placeholder="例如 500" value="${e&&e.cost!=null?e.cost:''}"></div>
           <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事" value="${e?esc(e.note||''):''}"></div>
@@ -1097,19 +1199,49 @@ function renderLogForm(petId){
         <div class="submit-row"><button class="btn btn-primary" id="submitLog">${e?'更新這筆支出':'儲存這筆支出'}</button></div>
       </div>
     `;
-    area.querySelectorAll('.cat-chip .cat-label').forEach(el=>{
-      el.onclick = ()=>{ document.getElementById('lg_category').value = el.parentElement.dataset.cat; };
+    area.querySelectorAll('.cat-chip').forEach(el=>{
+      el.onclick = ()=>{ document.getElementById('lg_category').value = el.dataset.cat; };
     });
-    area.querySelectorAll('.cat-chip .cat-del').forEach(b=>{
-      b.onclick = (ev)=>{
-        ev.stopPropagation();
-        if(confirm(`確定要移除「${b.dataset.cat}」這個類別建議嗎？（之前用這個類別記錄過的支出不會被刪除）`)){
-          removeOtherCategorySuggestion(b.dataset.cat);
-        }
-      };
-    });
+    document.getElementById('manageCategoriesBtn').onclick = ()=>openCategoryManageModal();
+    bindLogPhotoBox();
     document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'other');
   }
+}
+
+function bindLogPhotoBox(){
+  const box = document.getElementById('logPhotoBox');
+  const fileInput = document.getElementById('lg_photo');
+  if(!box || !fileInput) return;
+  box.onclick = ()=>fileInput.click();
+  fileInput.onchange = (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const scale = Math.min(1, 800/img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width*scale; canvas.height = img.height*scale;
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        logPhotoDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        box.classList.add('has-img');
+        box.innerHTML = `<img src="${logPhotoDataUrl}"><button class="photo-remove" id="removeLogPhoto">✕</button>`;
+        document.getElementById('removeLogPhoto').onclick = (ev2)=>{
+          ev2.stopPropagation(); logPhotoDataUrl=null;
+          box.classList.remove('has-img');
+          box.innerHTML = `<div class="placeholder"><span class="ic">📷</span>拍照或選擇照片</div>`;
+        };
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  const rm = document.getElementById('removeLogPhoto');
+  if(rm) rm.onclick = (ev2)=>{
+    ev2.stopPropagation(); logPhotoDataUrl=null;
+    box.classList.remove('has-img');
+    box.innerHTML = `<div class="placeholder"><span class="ic">📷</span>拍照或選擇照片</div>`;
+  };
 }
 
 function renderLogGroups(logs, showPetName){
@@ -1159,11 +1291,12 @@ function logCardHtml(f, showPetName){
           <span class="badge" style="background:${nameColor(f.uid)}22;color:${nameColor(f.uid)}">${esc(f.name)}</span>
           <span class="type-tag type-${t}">${LOG_TYPE_LABEL[t]}</span>
           <span class="time-tag">${esc(f.time||'')}</span>
-          ${showPetName && pet ? `<span class="pet-tag">${esc(pet.name)}</span>` : ''}
+          ${showPetName && pet ? `<span class="pet-tag" style="background:${petColor(pet.id)}22;color:${petColor(pet.id)}">${esc(pet.name)}</span>` : ''}
           ${f.cost ? `<span class="log-cost">💰 NT$${f.cost}</span>` : ''}
         </div>
         ${titleHtml}
         ${subHtml}
+        ${f.photo ? `<img class="feed-photo" src="${f.photo}">` : ''}
         ${f.note ? `<div class="feed-note">${esc(f.note)}</div>` : ''}
         ${canEdit ? `<div class="feed-actions"><button class="edit-btn" data-fid="${f.id}" data-pid="${f.petId}">編輯</button><button class="del-btn" data-fid="${f.id}" data-pid="${f.petId}">刪除</button></div>` : ''}
       </div>
@@ -1227,6 +1360,7 @@ async function submitLog(petId, type){
     data.rating = mealRatingValue || 0;
     data.calories = calRaw===''? null : Number(calRaw);
     data.protein = proRaw===''? null : Number(proRaw);
+    data.photo = logPhotoDataUrl || null;
   } else if(type==='vet'){
     const content = document.getElementById('lg_content').value.trim();
     if(!content){ toast('請填寫看診內容'); return; }
@@ -1241,6 +1375,7 @@ async function submitLog(petId, type){
     if(!category){ toast('請填寫類別'); return; }
     data.category = category;
     data.content = document.getElementById('lg_content').value.trim();
+    data.photo = logPhotoDataUrl || null;
   }
   btn.disabled = true; btn.textContent = isEdit? '更新中…':'儲存中…';
   try{
@@ -1273,12 +1408,19 @@ async function deleteLog(petId, logId){
 
 
 /* ================= ADD / EDIT PET ================= */
+function pickAvailablePetColor(){
+  const taken = new Set(allPets.filter(x=>x.color).map(x=>x.color));
+  for(const c of PALETTE){ if(!taken.has(c)) return c; }
+  return PALETTE[0];
+}
 let editingPet = null;
+let petColorValue = null;
 function renderAddPetForm(){
   const page = document.getElementById('page');
   if(!page) return;
   const p = editingPet;
   petPhotoDataUrl = p ? (p.photo || null) : null;
+  petColorValue = p ? (p.color || petColor(p.id)) : pickAvailablePetColor();
   page.innerHTML = `
     <div class="back-row"><button class="back-btn" id="backFromForm">← 取消</button></div>
     <div class="section-title">${p? '編輯寵物資料':'新增寵物'}</div>
@@ -1290,6 +1432,11 @@ function renderAddPetForm(){
         <input type="file" id="p_photo" accept="image/*" style="display:none">
       </div>
       <div class="field compact"><label>名字</label><input type="text" id="p_name" placeholder="例如：豆豆" value="${p? esc(p.name):''}"></div>
+      <div class="field compact"><label>代表色</label>
+        <div class="color-picker" id="petColorPicker">
+          ${PALETTE.map(c=>`<button type="button" class="color-swatch ${c===petColorValue?'selected':''}" data-color="${c}" style="background:${c}"></button>`).join('')}
+        </div>
+      </div>
       <div class="grid2">
         <div class="field compact"><label>種類</label>
           <select id="p_species">${SPECIES.map(s=>`<option ${p&&p.species===s?'selected':''}>${s}</option>`).join('')}</select>
@@ -1314,6 +1461,14 @@ function renderAddPetForm(){
     </div>
   `;
   document.getElementById('backFromForm').onclick = ()=>{ editingPet=null; view = p? 'detail':'list'; if(view==='detail') renderPetDetail(); else renderPetsList(); };
+
+  document.getElementById('petColorPicker').querySelectorAll('.color-swatch').forEach(sw=>{
+    sw.onclick = ()=>{
+      petColorValue = sw.dataset.color;
+      document.getElementById('petColorPicker').querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));
+      sw.classList.add('selected');
+    };
+  });
 
   const speciesSel = document.getElementById('p_species');
   const otherWrap = document.getElementById('p_species_other_wrap');
@@ -1374,6 +1529,7 @@ async function submitPet(){
     vaccineNotes: document.getElementById('p_vaccine').value.trim(),
     notes: document.getElementById('p_notes').value.trim(),
     photo: petPhotoDataUrl || null,
+    color: petColorValue || pickAvailablePetColor(),
   };
   try{
     if(isEdit){
@@ -1515,7 +1671,7 @@ function renderOverviewPage(){
     <div class="section-title">總覽統計</div>
     <div class="type-filter">
       <button class="chip ${!overviewPetFilter?'active':''}" data-pet="">全部寵物</button>
-      ${pets.map(p=>`<button class="chip ${overviewPetFilter===p.id?'active':''}" data-pet="${p.id}">${esc(p.name)}</button>`).join('')}
+      ${pets.map(p=>`<button class="chip ${overviewPetFilter===p.id?'active':''}" data-pet="${p.id}" style="${overviewPetFilter===p.id?`background:${petColor(p.id)};border-color:${petColor(p.id)}`:''}">${esc(p.name)}</button>`).join('')}
     </div>
     <div class="seg">
       <button class="${overviewRange==='month'?'active':''}" data-range="month">按月統計</button>
@@ -1546,7 +1702,7 @@ function renderOverviewPage(){
       <div class="form-card">
         ${pets.map(p=>`
           <div class="pet-breakdown-row">
-            <span class="pname">${p.photo?`<img src="${p.photo}">`:SPECIES_ICON[p.species]||'🐾'} ${esc(p.name)}</span>
+            <span class="pname"><span class="pet-color-dot" style="background:${petColor(p.id)}"></span>${p.photo?`<img src="${p.photo}">`:SPECIES_ICON[p.species]||'🐾'} ${esc(p.name)}</span>
             <span class="pval">NT$ ${byPet[p.id].cost.toLocaleString()}（${byPet[p.id].count} 筆）</span>
           </div>
         `).join('')}
