@@ -1709,10 +1709,12 @@ function renderLogTimeline(){
       <select id="quickPetSel">${pets.map(p=>`<option value="${p.id}" ${feedQuickPetId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
       <button class="add-fab" id="quickAddBtn" style="white-space:nowrap;">＋ 新增紀錄</button>
     </div>
+    <div class="friends-section-title" style="margin-top:4px;">篩選寵物</div>
     <div class="type-filter">
       <button class="chip ${!timelinePetFilter?'active':''}" data-pet="">全部寵物</button>
-      ${pets.map(p=>`<button class="chip ${timelinePetFilter===p.id?'active':''}" data-pet="${p.id}" style="${timelinePetFilter===p.id?`background:${petColor(p.id)};border-color:${petColor(p.id)}`:''}">${esc(p.name)}</button>`).join('')}
+      ${pets.map(p=>`<button class="chip ${timelinePetFilter===p.id?'active':''}" data-pet="${p.id}" style="${timelinePetFilter===p.id?`background:${petColor(p.id)};border-color:${petColor(p.id)}`:''}"><span class="pet-color-dot" style="background:${petColor(p.id)};${timelinePetFilter===p.id?'box-shadow:0 0 0 1.5px #fff;':''}"></span> ${esc(p.name)}</button>`).join('')}
     </div>
+    <div class="friends-section-title">篩選類型</div>
     <div class="type-filter">
       <button class="chip ${!timelineTypeFilter?'active':''}" data-type="">全部類型</button>
       ${LOG_TYPES.map(t=>`<button class="chip ${timelineTypeFilter===t?'active':''}" data-type="${t}">${LOG_TYPE_ICON[t]} ${LOG_TYPE_LABEL[t]}</button>`).join('')}
@@ -1870,7 +1872,7 @@ function renderOverviewPage(){
     <div class="section-title">總覽統計</div>
     <div class="type-filter">
       <button class="chip ${!overviewPetFilter?'active':''}" data-pet="">全部寵物</button>
-      ${pets.map(p=>`<button class="chip ${overviewPetFilter===p.id?'active':''}" data-pet="${p.id}" style="${overviewPetFilter===p.id?`background:${petColor(p.id)};border-color:${petColor(p.id)}`:''}">${esc(p.name)}</button>`).join('')}
+      ${pets.map(p=>`<button class="chip ${overviewPetFilter===p.id?'active':''}" data-pet="${p.id}" style="${overviewPetFilter===p.id?`background:${petColor(p.id)};border-color:${petColor(p.id)}`:''}"><span class="pet-color-dot" style="background:${petColor(p.id)};${overviewPetFilter===p.id?'box-shadow:0 0 0 1.5px #fff;':''}"></span> ${esc(p.name)}</button>`).join('')}
     </div>
     <div class="seg">
       <button class="${overviewRange==='month'?'active':''}" data-range="month">按月統計</button>
