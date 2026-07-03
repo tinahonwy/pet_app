@@ -1749,7 +1749,7 @@ function shiftOverviewDate(dir){
   overviewDate = d;
 }
 
-let weightChartDays = 7; // 7 | 365
+let weightChartDays = 30; // 30 | 90 | 365
 function buildWeightSeries(petId, days){
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate()-days);
@@ -1877,8 +1877,9 @@ function renderOverviewPage(){
 
     <div class="section-title">體重變化</div>
     <div class="seg">
-      <button class="${weightChartDays===7?'active':''}" data-days="7">最近 7 天</button>
-      <button class="${weightChartDays===365?'active':''}" data-days="365">最近 1 年</button>
+      <button class="${weightChartDays===30?'active':''}" data-days="30">一個月</button>
+      <button class="${weightChartDays===90?'active':''}" data-days="90">三個月</button>
+      <button class="${weightChartDays===365?'active':''}" data-days="365">一年</button>
     </div>
     <div class="form-card">
       ${(()=>{
