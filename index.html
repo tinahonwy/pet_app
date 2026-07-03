@@ -252,6 +252,10 @@
   .feed-icon.type-weight{background:#D9E7F0;color:#2C5A78;}
   .weight-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
   .weight-legend span{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-soft);}
+  .weight-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;}
+  .weight-stat-card{background:var(--paper);border-radius:12px;padding:10px 12px;}
+  .weight-stat-card .lbl{font-size:10.5px;color:var(--ink-soft);margin-bottom:3px;}
+  .weight-stat-card .val{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:var(--ink);}
   .log-stars{color:var(--honey);font-size:13px;letter-spacing:1px;}
   .log-cost{background:var(--paper);padding:2px 8px;border-radius:8px;font-size:11.5px;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-weight:600;}
 
@@ -1762,12 +1766,12 @@ function weightChartSvg(pets, days){
   const now = new Date();
   const start = new Date(); start.setDate(start.getDate()-days);
   const startMs = start.getTime(), endMs = now.getTime();
-  const W=320, H=160, padL=36, padR=10, padT=10, padB=10;
+  const W=320, H=190, padL=36, padR=10, padT=14, padB=20;
   const plotW = W-padL-padR, plotH = H-padT-padB;
 
   const seriesData = pets.map(p=>({
     pet: p,
-    pts: buildWeightSeries(p.id, days).map(l=>({ x: new Date(l.date+'T00:00:00').getTime(), y: l.weight }))
+    pts: buildWeightSeries(p.id, days).map(l=>({ x: new Date(l.date+'T00:00:00').getTime(), y: l.weight, date: l.date }))
   }));
   const allPoints = seriesData.flatMap(s=>s.pts);
   if(allPoints.length===0) return null;
@@ -1780,6 +1784,8 @@ function weightChartSvg(pets, days){
 
   const xScale = t => padL + ((t-startMs)/((endMs-startMs)||1)) * plotW;
   const yScale = v => padT + plotH - ((v-minY)/((maxY-minY)||1)) * plotH;
+  const baseY = padT + plotH;
+  const fmtDate = t => { const dt = new Date(t); return `${dt.getMonth()+1}/${dt.getDate()}`; };
 
   const gridLines = [0,0.5,1].map(f=>{
     const y = padT + plotH*f;
@@ -1787,16 +1793,37 @@ function weightChartSvg(pets, days){
     return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${padL-6}" y="${(y+3).toFixed(1)}" font-size="9" fill="#68705C" text-anchor="end">${val}</text>`;
   }).join('');
 
-  const seriesSvg = seriesData.map(s=>{
-    if(s.pts.length===0) return '';
-    const color = petColor(s.pet.id);
-    const pathD = s.pts.map((pt,i)=> `${i===0?'M':'L'} ${xScale(pt.x).toFixed(1)} ${yScale(pt.y).toFixed(1)}`).join(' ');
-    const line = s.pts.length>1 ? `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : '';
-    const dots = s.pts.map(pt=>`<circle cx="${xScale(pt.x).toFixed(1)}" cy="${yScale(pt.y).toFixed(1)}" r="3.5" fill="${color}" stroke="#fff" stroke-width="1.2"/>`).join('');
-    return line + dots;
+  const xTicks = [0,0.5,1].map(f=>{
+    const t = startMs + (endMs-startMs)*f;
+    const x = padL + plotW*f;
+    const anchor = f===0?'start':f===1?'end':'middle';
+    return `<text x="${x.toFixed(1)}" y="${(H-4).toFixed(1)}" font-size="9" fill="#68705C" text-anchor="${anchor}">${fmtDate(t)}</text>`;
   }).join('');
 
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${gridLines}${seriesSvg}</svg>`;
+  let defs = '';
+  const seriesSvg = seriesData.map((s,si)=>{
+    if(s.pts.length===0) return '';
+    const color = petColor(s.pet.id);
+    const gradId = `wgrad${si}`;
+    defs += `<linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.35"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient>`;
+    const pathD = s.pts.map((pt,i)=> `${i===0?'M':'L'} ${xScale(pt.x).toFixed(1)} ${yScale(pt.y).toFixed(1)}`).join(' ');
+    const areaD = s.pts.length>1
+      ? `${pathD} L ${xScale(s.pts[s.pts.length-1].x).toFixed(1)} ${baseY.toFixed(1)} L ${xScale(s.pts[0].x).toFixed(1)} ${baseY.toFixed(1)} Z`
+      : '';
+    const area = areaD ? `<path d="${areaD}" fill="url(#${gradId})" stroke="none"/>` : '';
+    const line = s.pts.length>1 ? `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : '';
+    const dots = s.pts.map(pt=>`<circle cx="${xScale(pt.x).toFixed(1)}" cy="${yScale(pt.y).toFixed(1)}" r="3.5" fill="${color}" stroke="#fff" stroke-width="1.2"/>`).join('');
+    return area + line + dots;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;"><defs>${defs}</defs>${gridLines}${seriesSvg}${xTicks}</svg>`;
+}
+function weightStats(petId, days){
+  const pts = buildWeightSeries(petId, days);
+  if(pts.length===0) return null;
+  const values = pts.map(l=>l.weight);
+  const avg = values.reduce((a,b)=>a+b,0)/values.length;
+  return { count: pts.length, avg: avg.toFixed(2), latest: values[values.length-1] };
 }
 
 function renderOverviewPage(){
@@ -1889,7 +1916,20 @@ function renderOverviewPage(){
         const legend = chartPets.length>1
           ? `<div class="weight-legend">${chartPets.map(p=>`<span><span class="pet-color-dot" style="background:${petColor(p.id)}"></span>${esc(p.name)}</span>`).join('')}</div>`
           : '';
-        return svg + legend;
+        let statsHtml = '';
+        if(chartPets.length===1){
+          const stats = weightStats(chartPets[0].id, weightChartDays);
+          if(stats){
+            statsHtml = `
+              <div class="weight-stat-grid">
+                <div class="weight-stat-card"><div class="lbl">筆數</div><div class="val">${stats.count}</div></div>
+                <div class="weight-stat-card"><div class="lbl">平均</div><div class="val">${stats.avg} kg</div></div>
+                <div class="weight-stat-card"><div class="lbl">最新</div><div class="val">${stats.latest} kg</div></div>
+              </div>
+            `;
+          }
+        }
+        return svg + legend + statsHtml;
       })()}
     </div>
   `;
