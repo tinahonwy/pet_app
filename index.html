@@ -191,6 +191,7 @@
   .type-tag.type-med{background:var(--honey-soft);color:#8A6A1E;}
   .type-tag.type-other{background:var(--moss-soft);color:var(--moss-deep);}
   .type-tag.type-discomfort{background:#F5D5D0;color:#9C4A3A;}
+  .type-tag.type-weight{background:#D9E7F0;color:#2C5A78;}
   .feed-food{font-size:14.5px;font-weight:500;margin:4px 0 2px;line-height:1.4;}
   .feed-amount{font-size:12px;color:var(--ink-soft);}
   .feed-note{font-size:12px;color:var(--ink-soft);margin-top:4px;}
@@ -225,6 +226,7 @@
   .seg button.active.type-med{background:var(--honey);}
   .seg button.active.type-other{background:#7D5BA6;}
   .seg button.active.type-discomfort{background:#C05C4A;}
+  .seg button.active.type-weight{background:#3E7CA6;}
 
   .star-picker{display:flex;gap:4px;}
   .star-btn{background:none;border:none;font-size:24px;line-height:1;cursor:pointer;padding:2px;color:var(--honey);}
@@ -247,6 +249,9 @@
   .feed-icon.type-med{background:var(--honey-soft);color:#8A6A1E;}
   .feed-icon.type-other{background:var(--moss-soft);color:var(--moss-deep);}
   .feed-icon.type-discomfort{background:#F5D5D0;color:#9C4A3A;}
+  .feed-icon.type-weight{background:#D9E7F0;color:#2C5A78;}
+  .weight-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
+  .weight-legend span{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-soft);}
   .log-stars{color:var(--honey);font-size:13px;letter-spacing:1px;}
   .log-cost{background:var(--paper);padding:2px 8px;border-radius:8px;font-size:11.5px;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-weight:600;}
 
@@ -300,9 +305,9 @@ const DEFAULT_LOGO = "./PLOGO.png";
 const SPECIES = ["狗","貓","兔子","鳥","倉鼠","魚","其他"];
 const SPECIES_ICON = {"狗":"🐶","貓":"🐱","兔子":"🐰","鳥":"🐦","倉鼠":"🐹","魚":"🐟","其他":"🐾"};
 const PALETTE = ["#4C6B3F","#BE7A46","#C99A3E","#3E7CA6","#7D5BA6","#AE4A34","#5C8A6B","#B65A82"];
-const LOG_TYPES = ["meal","vet","med","discomfort","other"];
-const LOG_TYPE_LABEL = {meal:"飲食", vet:"看診", med:"用藥", discomfort:"不舒服", other:"其他支出"};
-const LOG_TYPE_ICON = {meal:"🍖", vet:"🩺", med:"💊", discomfort:"🤒", other:"🧾"};
+const LOG_TYPES = ["meal","vet","med","discomfort","weight","other"];
+const LOG_TYPE_LABEL = {meal:"飲食", vet:"看診", med:"用藥", discomfort:"不舒服", weight:"體重", other:"其他支出"};
+const LOG_TYPE_ICON = {meal:"🍖", vet:"🩺", med:"💊", discomfort:"🤒", weight:"⚖️", other:"🧾"};
 const SEVERITY_OPTIONS = ["","輕微","中等","嚴重"];
 const LEFTOVER_OPTIONS = ["","吃光光","剩一點","剩一半","剩大半","幾乎沒吃"];
 const OTHER_CAT_SUGGESTIONS = ["用品","美容","保險","住宿","交通"];
@@ -1043,7 +1048,7 @@ function renderPetDetail(){
       ${p.vaccineNotes ? `<div class="pet-note-block"><div class="lbl">疫苗 / 醫療紀錄</div>${esc(p.vaccineNotes)}</div>` : ''}
       <div class="pet-detail-actions">
         <button class="edit" id="editPetBtn">✎ 編輯資料</button>
-        <button class="del" id="delPetBtn">🗑 刪除寵物</button>
+        ${isMine(p.ownerId) ? `<button class="del" id="delPetBtn">🗑 刪除寵物</button>` : ''}
       </div>
     </div>
 
@@ -1058,7 +1063,8 @@ function renderPetDetail(){
   `;
   document.getElementById('backToList').onclick = ()=>{ view='list'; editingLog=null; renderPetsList(); };
   document.getElementById('editPetBtn').onclick = ()=>{ view='editPet'; editingPet=p; renderAddPetForm(); };
-  document.getElementById('delPetBtn').onclick = ()=>deletePet(p);
+  const delBtn = document.getElementById('delPetBtn');
+  if(delBtn) delBtn.onclick = ()=>deletePet(p);
   page.querySelectorAll('#logTypeSeg button').forEach(b=>{
     b.onclick = ()=>{ if(editingLog) return; addLogType = b.dataset.type; renderPetDetail(); };
   });
@@ -1227,6 +1233,16 @@ function renderLogForm(petId){
     `;
     bindLogPhotoBox();
     document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'discomfort');
+  } else if(t==='weight'){
+    area.innerHTML = `
+      <div class="form-card">
+        <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
+        <div class="field compact"><label>體重 (kg)</label><input type="number" step="0.01" min="0" id="lg_weight" placeholder="例如 4.2" value="${e&&e.weight!=null?e.weight:''}"></div>
+        <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事" value="${e?esc(e.note||''):''}"></div>
+        <div class="submit-row"><button class="btn btn-primary" id="submitLog">${e?'更新這筆體重紀錄':'儲存這筆體重紀錄'}</button></div>
+      </div>
+    `;
+    document.getElementById('submitLog').onclick = ()=>submitLog(petId, 'weight');
   } else {
     area.innerHTML = `
       <div class="form-card">
@@ -1337,6 +1353,8 @@ function logCardHtml(f, showPetName){
   } else if(t==='discomfort'){
     titleHtml = `<div class="feed-food">${esc(f.content||'')}</div>`;
     if(f.severity) subHtml += `<div class="feed-amount">嚴重程度：${esc(f.severity)}</div>`;
+  } else if(t==='weight'){
+    titleHtml = `<div class="feed-food">${f.weight!=null? f.weight+' kg' : ''}</div>`;
   } else {
     titleHtml = `<div class="feed-food">${esc(f.category||'其他')}${f.content? '：'+esc(f.content):''}</div>`;
   }
@@ -1350,7 +1368,7 @@ function logCardHtml(f, showPetName){
         <div class="feed-top">
           <span class="badge" style="background:${nameColor(f.uid)}22;color:${nameColor(f.uid)}">${esc(f.name)}</span>
           <span class="type-tag type-${t}">${LOG_TYPE_LABEL[t]}</span>
-          <span class="time-tag">${esc(f.time||'')}</span>
+          ${t!=='weight' ? `<span class="time-tag">${esc(f.time||'')}</span>` : ''}
           ${showPetName && pet ? `<span class="pet-tag" style="background:${petColor(pet.id)}22;color:${petColor(pet.id)}">${esc(pet.name)}</span>` : ''}
           ${f.cost ? `<span class="log-cost">💰 NT$${f.cost}</span>` : ''}
         </div>
@@ -1388,10 +1406,12 @@ function formatDate(d){
 async function submitLog(petId, type){
   const btn = document.getElementById('submitLog');
   const date = document.getElementById('lg_date').value;
-  const time = document.getElementById('lg_time').value;
-  if(!date || !time){ toast('請選擇日期和時間'); return; }
+  const timeEl = document.getElementById('lg_time');
+  const time = timeEl ? timeEl.value : '00:00';
+  if(!date || (timeEl && !time)){ toast('請選擇日期和時間'); return; }
   const isEdit = !!editingLog;
-  const costVal = document.getElementById('lg_cost').value;
+  const costEl = document.getElementById('lg_cost');
+  const costVal = costEl ? costEl.value : '';
   const data = {
     type, date, time,
     cost: costVal===''? null : Number(costVal),
@@ -1435,6 +1455,10 @@ async function submitLog(petId, type){
     data.content = content;
     data.severity = document.getElementById('lg_severity').value;
     data.photo = logPhotoDataUrl || null;
+  } else if(type==='weight'){
+    const weightRaw = document.getElementById('lg_weight').value;
+    if(weightRaw===''){ toast('請填寫體重'); return; }
+    data.weight = Number(weightRaw);
   } else {
     const category = document.getElementById('lg_category').value.trim();
     if(!category){ toast('請填寫類別'); return; }
@@ -1455,6 +1479,16 @@ async function submitLog(petId, type){
       const ref = await db.collection('pets').doc(petId).collection('logs').add(data);
       logsByPet[petId] = [...(logsByPet[petId]||[]), {id:ref.id, petId, ...data}];
       rebuildAllLogs();
+      if(type==='weight'){
+        const isNewestWeight = !(logsByPet[petId]||[]).some(l=>l.type==='weight' && l.id!==ref.id && l.date>data.date);
+        if(isNewestWeight){
+          db.collection('pets').doc(petId).update({weight: data.weight}).then(()=>{
+            if(ownPetsMap[petId]) ownPetsMap[petId] = {...ownPetsMap[petId], weight: data.weight};
+            if(friendPetsMap[petId]) friendPetsMap[petId] = {...friendPetsMap[petId], weight: data.weight};
+            rebuildAllPets();
+          }).catch(err=>console.error(err));
+        }
+      }
       toast('已儲存這筆紀錄 ' + LOG_TYPE_ICON[type]);
       renderPetDetail();
     }
@@ -1627,6 +1661,7 @@ async function submitPet(){
 }
 
 async function deletePet(p){
+  if(!isMine(p.ownerId)){ toast('只有建立者本人能刪除這隻寵物'); return; }
   if(!confirm(`確定要刪除「${p.name}」嗎？相關的照護紀錄也會一併刪除,無法復原。`)) return;
   try{
     const logsSnap = await db.collection('pets').doc(p.id).collection('logs').get();
@@ -1714,6 +1749,56 @@ function shiftOverviewDate(dir){
   overviewDate = d;
 }
 
+let weightChartDays = 7; // 7 | 365
+function buildWeightSeries(petId, days){
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate()-days);
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+  return allLogs
+    .filter(l=>l.petId===petId && l.type==='weight' && l.weight!=null && l.date>=cutoffStr)
+    .sort((a,b)=>a.date.localeCompare(b.date));
+}
+function weightChartSvg(pets, days){
+  const now = new Date();
+  const start = new Date(); start.setDate(start.getDate()-days);
+  const startMs = start.getTime(), endMs = now.getTime();
+  const W=320, H=160, padL=36, padR=10, padT=10, padB=10;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+
+  const seriesData = pets.map(p=>({
+    pet: p,
+    pts: buildWeightSeries(p.id, days).map(l=>({ x: new Date(l.date+'T00:00:00').getTime(), y: l.weight }))
+  }));
+  const allPoints = seriesData.flatMap(s=>s.pts);
+  if(allPoints.length===0) return null;
+
+  let minY = Math.min(...allPoints.map(p=>p.y));
+  let maxY = Math.max(...allPoints.map(p=>p.y));
+  if(minY===maxY){ minY -= 1; maxY += 1; }
+  const yPad = (maxY-minY)*0.2;
+  minY -= yPad; maxY += yPad;
+
+  const xScale = t => padL + ((t-startMs)/((endMs-startMs)||1)) * plotW;
+  const yScale = v => padT + plotH - ((v-minY)/((maxY-minY)||1)) * plotH;
+
+  const gridLines = [0,0.5,1].map(f=>{
+    const y = padT + plotH*f;
+    const val = (maxY - (maxY-minY)*f).toFixed(1);
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${padL-6}" y="${(y+3).toFixed(1)}" font-size="9" fill="#68705C" text-anchor="end">${val}</text>`;
+  }).join('');
+
+  const seriesSvg = seriesData.map(s=>{
+    if(s.pts.length===0) return '';
+    const color = petColor(s.pet.id);
+    const pathD = s.pts.map((pt,i)=> `${i===0?'M':'L'} ${xScale(pt.x).toFixed(1)} ${yScale(pt.y).toFixed(1)}`).join(' ');
+    const line = s.pts.length>1 ? `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : '';
+    const dots = s.pts.map(pt=>`<circle cx="${xScale(pt.x).toFixed(1)}" cy="${yScale(pt.y).toFixed(1)}" r="3.5" fill="${color}" stroke="#fff" stroke-width="1.2"/>`).join('');
+    return line + dots;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${gridLines}${seriesSvg}</svg>`;
+}
+
 function renderOverviewPage(){
   const page = document.getElementById('page');
   if(!page) return;
@@ -1728,15 +1813,17 @@ function renderOverviewPage(){
   const logs = allLogs.filter(l=>scopedPetIdSet.has(l.petId) && isInOverviewRange(l.date));
 
   const totalCost = logs.reduce((sum,l)=>sum+(l.cost||0),0);
+  const costTypes = LOG_TYPES.filter(t=>t!=='weight');
   const byType = {};
-  LOG_TYPES.forEach(t=>byType[t]={cost:0,count:0});
+  costTypes.forEach(t=>byType[t]={cost:0,count:0});
   logs.forEach(l=>{
     const t = l.type||'meal';
+    if(t==='weight') return;
     if(!byType[t]) byType[t]={cost:0,count:0};
     byType[t].cost += (l.cost||0);
     byType[t].count += 1;
   });
-  const maxTypeCost = Math.max(1, ...LOG_TYPES.map(t=>byType[t].cost));
+  const maxTypeCost = Math.max(1, ...costTypes.map(t=>byType[t].cost));
 
   const byPet = {};
   pets.forEach(p=>byPet[p.id]={cost:0,count:0});
@@ -1768,7 +1855,7 @@ function renderOverviewPage(){
 
     <div class="section-title">依類別分布</div>
     <div class="form-card" style="margin-bottom:16px;">
-      ${LOG_TYPES.map(t=>`
+      ${costTypes.map(t=>`
         <div class="type-bar-row">
           <div class="row-head"><span class="name">${LOG_TYPE_ICON[t]} ${LOG_TYPE_LABEL[t]}</span><span class="val">NT$ ${byType[t].cost.toLocaleString()}（${byType[t].count} 筆）</span></div>
           <div class="type-bar-track"><div class="type-bar-fill" style="width:${Math.round(byType[t].cost/maxTypeCost*100)}%;background:${typeColor(t)}"></div></div>
@@ -1787,18 +1874,38 @@ function renderOverviewPage(){
         `).join('')}
       </div>
     ` : ''}
+
+    <div class="section-title">體重變化</div>
+    <div class="seg">
+      <button class="${weightChartDays===7?'active':''}" data-days="7">最近 7 天</button>
+      <button class="${weightChartDays===365?'active':''}" data-days="365">最近 1 年</button>
+    </div>
+    <div class="form-card">
+      ${(()=>{
+        const chartPets = overviewPetFilter ? pets.filter(p=>p.id===overviewPetFilter) : pets;
+        const svg = weightChartSvg(chartPets, weightChartDays);
+        if(!svg) return `<div class="empty-state" style="padding:20px 8px;"><span class="ic">⚖️</span>這段期間還沒有體重紀錄</div>`;
+        const legend = chartPets.length>1
+          ? `<div class="weight-legend">${chartPets.map(p=>`<span><span class="pet-color-dot" style="background:${petColor(p.id)}"></span>${esc(p.name)}</span>`).join('')}</div>`
+          : '';
+        return svg + legend;
+      })()}
+    </div>
   `;
   page.querySelectorAll('.type-filter .chip').forEach(b=>{
     b.onclick = ()=>{ overviewPetFilter = b.dataset.pet; renderOverviewPage(); };
   });
-  page.querySelectorAll('.seg button').forEach(b=>{
+  page.querySelectorAll('.seg button[data-range]').forEach(b=>{
     b.onclick = ()=>{ overviewRange = b.dataset.range; renderOverviewPage(); };
+  });
+  page.querySelectorAll('.seg button[data-days]').forEach(b=>{
+    b.onclick = ()=>{ weightChartDays = Number(b.dataset.days); renderOverviewPage(); };
   });
   document.getElementById('rangePrev').onclick = ()=>{ shiftOverviewDate(-1); renderOverviewPage(); };
   document.getElementById('rangeNext').onclick = ()=>{ shiftOverviewDate(1); renderOverviewPage(); };
 }
 function typeColor(t){
-  return {meal:'var(--clay)', vet:'#7D5BA6', med:'var(--honey)', discomfort:'#C05C4A', other:'var(--moss)'}[t] || 'var(--moss)';
+  return {meal:'var(--clay)', vet:'#7D5BA6', med:'var(--honey)', discomfort:'#C05C4A', weight:'#3E7CA6', other:'var(--moss)'}[t] || 'var(--moss)';
 }
 
 root.innerHTML = `<div class="loading">載入中…</div>`;
