@@ -1042,10 +1042,10 @@ function renderPetDetail(){
       <div class="pet-detail-name"><span class="pet-color-dot" style="background:${petColor(p.id)};width:11px;height:11px;"></span>${esc(p.name)}</div>
       <div class="pet-detail-sub">${esc(speciesLabel)}${p.breed? ' · '+esc(p.breed):''}${p.gender? ' · '+esc(p.gender):''} ・ 由 ${esc(userName(p.ownerId))} 建立</div>
       <div class="pet-info-grid">
-        <div class="pet-info-item"><div class="lbl">生日</div><div class="val">${p.birthday ? esc(p.birthday) : '未填寫'}</div></div>
+        <div class="pet-info-item"><div class="lbl">生日</div><div class="val">${p.birthday ? shortDate(p.birthday) : '未填寫'}</div></div>
         ${p.birthday && calcPetAge(p.birthday) ? `<div class="pet-info-item"><div class="lbl">年齡</div><div class="val">${calcPetAge(p.birthday)}</div></div>` : ''}
         <div class="pet-info-item"><div class="lbl">體重</div><div class="val">${p.weight ? p.weight+' kg' : '未填寫'}</div></div>
-        ${p.familyDate ? `<div class="pet-info-item"><div class="lbl">成為家人的日子</div><div class="val">${esc(p.familyDate)}</div></div>` : ''}
+        ${p.familyDate ? `<div class="pet-info-item"><div class="lbl">成為家人的日子</div><div class="val">${shortDate(p.familyDate)}</div></div>` : ''}
         ${p.familyDate && calcPetAge(p.familyDate) ? `<div class="pet-info-item"><div class="lbl">相伴時光</div><div class="val">${calcPetAge(p.familyDate)}</div></div>` : ''}
       </div>
       ${p.notes ? `<div class="pet-note-block"><div class="lbl">備註</div>${esc(p.notes)}</div>` : ''}
@@ -1405,6 +1405,12 @@ function formatDate(d){
   const dt = new Date(d+'T00:00:00');
   const days = ['週日','週一','週二','週三','週四','週五','週六'];
   return `${dt.getMonth()+1}月${dt.getDate()}日 · ${days[dt.getDay()]}`;
+}
+function shortDate(d){
+  if(!d) return '';
+  const dt = new Date(d+'T00:00:00');
+  if(isNaN(dt.getTime())) return d;
+  return `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日`;
 }
 
 async function submitLog(petId, type){
