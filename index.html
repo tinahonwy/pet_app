@@ -159,6 +159,12 @@
   .field.compact{margin-bottom:12px;}
   .field.compact label{font-size:11.5px;}
   .field.compact input, .field.compact select{padding:10px 11px;font-size:14px;}
+  .date-wrap{position:relative;overflow:hidden;border-radius:10px;border:1.5px solid var(--line);background:#fff;}
+  .date-wrap input[type=date], .date-wrap input[type=time]{
+    border:none;background:transparent;display:block;width:100%;min-width:0;
+    padding:10px 11px;font-size:14px;color:var(--ink);box-sizing:border-box;
+  }
+  .date-wrap input[type=date]:focus, .date-wrap input[type=time]:focus{outline:none;}
   textarea{width:100%;padding:12px 13px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-size:15px;color:var(--ink);resize:vertical;min-height:52px;}
   textarea:focus{outline:none;border-color:var(--moss);}
 
@@ -1092,8 +1098,8 @@ function renderLogForm(petId){
     area.innerHTML = `
       <div class="form-card">
         <div class="grid2">
-          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
-          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div>
+          <div class="field compact"><label>日期</label><div class="date-wrap"><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div></div>
+          <div class="field compact"><label>時間</label><div class="date-wrap"><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div></div>
         </div>
         <div class="field compact"><label>吃了什麼</label>
           <textarea id="lg_food" placeholder="例如：飼料、雞胸肉罐頭">${e? esc(e.food||''):''}</textarea>
@@ -1179,8 +1185,8 @@ function renderLogForm(petId){
     area.innerHTML = `
       <div class="form-card">
         <div class="grid2">
-          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
-          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div>
+          <div class="field compact"><label>日期</label><div class="date-wrap"><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div></div>
+          <div class="field compact"><label>時間</label><div class="date-wrap"><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div></div>
         </div>
         <div class="field compact"><label>看診內容</label><textarea id="lg_content" placeholder="例如：例行健檢、皮膚紅腫就診">${e?esc(e.content||''):''}</textarea></div>
         <div class="grid2">
@@ -1195,8 +1201,8 @@ function renderLogForm(petId){
     area.innerHTML = `
       <div class="form-card">
         <div class="grid2">
-          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
-          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div>
+          <div class="field compact"><label>日期</label><div class="date-wrap"><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div></div>
+          <div class="field compact"><label>時間</label><div class="date-wrap"><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div></div>
         </div>
         <div class="grid2">
           <div class="field compact"><label>藥品名稱</label><input type="text" id="lg_medname" placeholder="例如：心絲蟲預防藥" value="${e?esc(e.medName||''):''}"></div>
@@ -1215,8 +1221,8 @@ function renderLogForm(petId){
     area.innerHTML = `
       <div class="form-card">
         <div class="grid2">
-          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
-          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div>
+          <div class="field compact"><label>日期</label><div class="date-wrap"><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div></div>
+          <div class="field compact"><label>時間</label><div class="date-wrap"><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div></div>
         </div>
         <div class="field compact"><label>症狀內容</label><textarea id="lg_content" placeholder="例如：一直抓耳朵、嘔吐、精神不好">${e?esc(e.content||''):''}</textarea></div>
         <div class="field compact"><label>嚴重程度（選填）</label>
@@ -1240,7 +1246,7 @@ function renderLogForm(petId){
   } else if(t==='weight'){
     area.innerHTML = `
       <div class="form-card">
-        <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
+        <div class="field compact"><label>日期</label><div class="date-wrap"><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div></div>
         <div class="field compact"><label>體重 (kg)</label><input type="number" step="0.01" min="0" id="lg_weight" placeholder="例如 4.2" value="${e&&e.weight!=null?e.weight:''}"></div>
         <div class="field compact"><label>備註（選填）</label><input type="text" id="lg_note" placeholder="任何想記下的小事" value="${e?esc(e.note||''):''}"></div>
         <div class="submit-row"><button class="btn btn-primary" id="submitLog">${e?'更新這筆體重紀錄':'儲存這筆體重紀錄'}</button></div>
@@ -1251,8 +1257,8 @@ function renderLogForm(petId){
     area.innerHTML = `
       <div class="form-card">
         <div class="grid2">
-          <div class="field compact"><label>日期</label><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div>
-          <div class="field compact"><label>時間</label><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div>
+          <div class="field compact"><label>日期</label><div class="date-wrap"><input type="date" id="lg_date" value="${e? e.date : todayStr()}"></div></div>
+          <div class="field compact"><label>時間</label><div class="date-wrap"><input type="time" id="lg_time" value="${e? e.time : nowTimeStr()}"></div></div>
         </div>
         <div class="field compact"><label>類別</label>
           <input type="text" id="lg_category" placeholder="例如：用品、美容" value="${e?esc(e.category||''):''}">
@@ -1564,8 +1570,8 @@ function renderAddPetForm(){
         <div class="field compact"><label>體重 kg（選填）</label><input type="number" step="0.1" min="0" id="p_weight" value="${p&&p.weight?p.weight:''}"></div>
       </div>
       <div class="grid2">
-        <div class="field compact"><label>生日（選填）</label><input type="date" id="p_birthday" value="${p&&p.birthday?p.birthday:''}"></div>
-        <div class="field compact"><label>成為家人的日子（選填）</label><input type="date" id="p_familydate" value="${p&&p.familyDate?p.familyDate:''}"></div>
+        <div class="field compact"><label>生日（選填）</label><div class="date-wrap"><input type="date" id="p_birthday" value="${p&&p.birthday?p.birthday:''}"></div></div>
+        <div class="field compact"><label>成為家人的日子（選填）</label><div class="date-wrap"><input type="date" id="p_familydate" value="${p&&p.familyDate?p.familyDate:''}"></div></div>
       </div>
       <div class="field compact"><label>疫苗 / 醫療紀錄（選填）</label><textarea id="p_vaccine" placeholder="例如：2026/03 施打狂犬病疫苗">${p? esc(p.vaccineNotes||''):''}</textarea></div>
       <div class="field compact"><label>備註（選填）</label><textarea id="p_notes" placeholder="個性、飲食禁忌、任何想記下的事">${p? esc(p.notes||''):''}</textarea></div>
