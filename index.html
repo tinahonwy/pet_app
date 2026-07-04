@@ -49,7 +49,7 @@
   input,select,textarea{font-family:inherit;}
   a{color:var(--moss-deep);}
 
-  #root{max-width:560px;margin:0 auto;min-height:100vh;min-height:100svh;position:relative;padding-bottom:calc(120px + env(safe-area-inset-bottom));}
+  #root{max-width:560px;margin:0 auto;min-height:100vh;min-height:100svh;position:relative;padding-bottom:calc(160px + env(safe-area-inset-bottom));}
 
   .paw{display:inline-block;width:1em;height:1em;vertical-align:-0.12em;}
 
@@ -141,10 +141,10 @@
   .pet-detail-photo-fallback{width:100%;height:160px;border-radius:14px;background:var(--moss-soft);display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:14px;}
   .pet-detail-name{font-size:24px;font-weight:600;margin:0 0 4px;display:flex;align-items:center;gap:8px;}
   .pet-detail-sub{font-size:13px;color:var(--ink-soft);margin-bottom:12px;}
-  .pet-info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:10px;margin-bottom:12px;}
-  .pet-info-item{background:var(--paper);border-radius:12px;padding:9px 12px;}
-  .pet-info-item .lbl{font-size:10.5px;color:var(--ink-soft);margin-bottom:2px;}
-  .pet-info-item .val{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;word-break:keep-all;-webkit-hyphens:none;hyphens:none;}
+  .pet-info-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:12px;}
+  .pet-info-item{background:var(--paper);border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .pet-info-item .lbl{font-size:11.5px;color:var(--ink-soft);flex-shrink:0;}
+  .pet-info-item .val{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.35;text-align:right;}
   .pet-note-block{background:var(--paper);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.6;color:var(--ink);margin-bottom:10px;white-space:pre-wrap;}
   .pet-note-block .lbl{font-size:10.5px;color:var(--ink-soft);margin-bottom:4px;font-weight:600;letter-spacing:.5px;}
   .pet-detail-actions{display:flex;gap:10px;margin-top:14px;}
